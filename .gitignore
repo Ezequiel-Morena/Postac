@@ -1,0 +1,33 @@
+# Entorno virtual
+venv/
+.venv/
+env/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Saves (datos de partida — no subir, son locales)
+saves/
+
+# Imágenes generadas
+*.png
+
+# Logs
+*.log
+bot.log
+
+# Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db

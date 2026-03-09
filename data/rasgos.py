@@ -2,23 +2,53 @@
 # data/rasgos.py
 # Sistema de Rasgos (Traits/Perks).
 #
-# Los rasgos son modificadores permanentes que el personaje
-# puede tener desde el inicio (background) o adquirir
-# durante el juego (por eventos, decisiones, acumulación de XP).
-#
 # Para agregar un rasgo nuevo:
-#   1. Añadir una entrada al diccionario RASGOS
-#   2. Definir cuándo se puede adquirir en "adquisicion"
+#   1. Añadir una entrada al diccionario RASGOS con su clave única
+#   2. Definir los efectos según la categoría que corresponda (ver abajo)
+#   3. Definir cuándo se puede adquirir en "adquisicion"
 #   Nada más. El engine lo aplicará automáticamente.
+#
+# ── CATEGORÍAS DE EFECTOS ─────────────────────────────────────
+#
+#   A — AL ADQUIRIR (se aplican una sola vez en _aplicar_rasgo):
+#       "skills": {"nombre_skill": bonus_int}
+#       "salud_max": int
+#       "carga_max": float
+#
+#   B — PASIVOS ESCALARES (se consultan con obtener_efecto_rasgo):
+#       "daño_cac_mult": float
+#       "dificultad_esquive": int
+#       "multiplicador_medicina": float
+#       "multiplicador_consumo_hambre": float
+#       "multiplicador_consumo_sed": float
+#       "penalizacion_presion_mult": float
+#       "recuperacion_descanso_mult": float
+#       "xp_mult_global": float          ← multiplica toda XP ganada
+#       "xp_mult_libro": float           ← multiplica XP de libros
+#       "bonus_check_experto": int        ← bonus a checks cuando skill > 70
+#
+#   C — CONTEXTUALES (se consultan con modificador_skill_en_contexto):
+#       "skills_en_interior": {"nombre_skill": mod_int}
+#       "skills_en_noche":    {"nombre_skill": mod_int}  (futuro)
+#
+#   D — DEPENDENCIAS (se procesan en tick_dependencias):
+#       "dependencia_item": "key_item"
+#       "penalizacion_sin_item": {"stats_global": int}
+#
+#   E — INMUNIDADES (se consultan con tiene_inmunidad):
+#       "inmune_envenenamiento_comida": True
+#       "inmune_panico": True             (reservado — sistema de pánico futuro)
+#
+#   F — CAPACIDADES (flags para sistemas futuros):
+#       "puede_fabricar": True            (reservado — sistema de fabricación)
 # ============================================================
 
 RASGOS = {
 
     # ══════════════════════════════════════════════════════════
-    #  RASGOS POSITIVOS
+    #  RASGOS POSITIVOS — COMBATE
     # ══════════════════════════════════════════════════════════
 
-    # ── COMBATE ───────────────────────────────────────────────
     "golpe_brutal": {
         "nombre":      "Golpe Brutal",
         "icono":       "💥",
@@ -26,15 +56,16 @@ RASGOS = {
         "tipo":        "positivo",
         "categoria":   "combate",
         "efectos": {
-            "daño_cac_mult": 1.20,
+            "daño_cac_mult": 1.20,                  # Categoría B
         },
         "adquisicion": {
-            "tipo":    "acumulacion",   # se gana con uso repetido
-            "skill":   "combate_cac",
-            "umbral":  60,             # cuando la skill llega a 60
+            "tipo":   "acumulacion",
+            "skill":  "combate_cac",
+            "umbral": 60,
         },
         "incompatible_con": [],
     },
+
     "mano_firme": {
         "nombre":      "Mano Firme",
         "icono":       "🎯",
@@ -42,15 +73,16 @@ RASGOS = {
         "tipo":        "positivo",
         "categoria":   "combate",
         "efectos": {
-            "skills": {"combate_distancia": 15},
+            "skills": {"combate_distancia": 15},    # Categoría A
         },
         "adquisicion": {
-            "tipo":    "acumulacion",
-            "skill":   "combate_distancia",
-            "umbral":  50,
+            "tipo":   "acumulacion",
+            "skill":  "combate_distancia",
+            "umbral": 50,
         },
         "incompatible_con": [],
     },
+
     "esquivador": {
         "nombre":      "Esquivador",
         "icono":       "💨",
@@ -58,17 +90,20 @@ RASGOS = {
         "tipo":        "positivo",
         "categoria":   "combate",
         "efectos": {
-            "dificultad_esquive": -1,
+            "dificultad_esquive": -1,               # Categoría B
         },
         "adquisicion": {
-            "tipo":    "acumulacion",
-            "stat":    "destreza",
-            "umbral":  8,             # cuando destreza >= 8
+            "tipo":   "acumulacion",
+            "stat":   "destreza",
+            "umbral": 8,
         },
         "incompatible_con": [],
     },
 
-    # ── SUPERVIVENCIA ─────────────────────────────────────────
+    # ══════════════════════════════════════════════════════════
+    #  RASGOS POSITIVOS — SUPERVIVENCIA
+    # ══════════════════════════════════════════════════════════
+
     "estomago_de_hierro": {
         "nombre":      "Estómago de Hierro",
         "icono":       "🫀",
@@ -76,63 +111,150 @@ RASGOS = {
         "tipo":        "positivo",
         "categoria":   "supervivencia",
         "efectos": {
-            "inmune_envenenamiento_comida": True,
+            "inmune_envenenamiento_comida": True,   # Categoría E
         },
         "adquisicion": {
-            "tipo":    "evento",       # se gana tras sobrevivir un evento específico
-            "evento":  "sobrevivir_envenenamiento",
+            "tipo":   "acumulacion",
+            "skill":  "supervivencia",
+            "umbral": 50,
         },
         "incompatible_con": [],
     },
-    "metabolismo_lento": {
-        "nombre":      "Metabolismo Lento",
-        "icono":       "🐢",
-        "descripcion": "Consumes recursos un 25% más lento.",
-        "tipo":        "positivo",
-        "categoria":   "supervivencia",
-        "efectos": {
-            "multiplicador_consumo_hambre": 0.75,
-            "multiplicador_consumo_sed":    0.75,
-        },
-        "adquisicion": {
-            "tipo":    "acumulacion",
-            "stat":    "resistencia",
-            "umbral":  9,
-        },
-        "incompatible_con": ["metabolismo_rapido"],
-    },
-    "ojos_de_aguila": {
-        "nombre":      "Ojos de Águila",
-        "icono":       "🦅",
-        "descripcion": "Percibes detalles que otros ignoran. +20 a Saqueo.",
-        "tipo":        "positivo",
-        "categoria":   "supervivencia",
-        "efectos": {
-            "skills": {"saqueo": 20},
-        },
-        "adquisicion": {
-            "tipo":    "acumulacion",
-            "skill":   "saqueo",
-            "umbral":  55,
-        },
-        "incompatible_con": [],
-    },
-    "curandero_nato": {
-        "nombre":      "Curandero Nato",
-        "icono":       "💊",
-        "descripcion": "Los consumibles médicos tienen un 50% más de efecto.",
+
+    # ══════════════════════════════════════════════════════════
+    #  RASGOS POSITIVOS — CONOCIMIENTO
+    # ══════════════════════════════════════════════════════════
+
+    "medico_nato": {
+        "nombre":      "Médico Nato",
+        "icono":       "🩺",
+        "descripcion": "Años de práctica. La medicina surte un 50% más de efecto.",
         "tipo":        "positivo",
         "categoria":   "conocimiento",
         "efectos": {
-            "multiplicador_medicina": 1.50,
+            "multiplicador_medicina": 1.50,         # Categoría B
         },
         "adquisicion": {
-            "tipo":    "acumulacion",
-            "skill":   "medicina",
-            "umbral":  65,
+            "tipo":   "acumulacion",
+            "skill":  "medicina",
+            "umbral": 65,
         },
         "incompatible_con": [],
     },
+
+    "mecanico_improvisado": {
+        "nombre":      "Mecánico Improvisado",
+        "icono":       "⚙️",
+        "descripcion": "Puedes fabricar items básicos con chatarra. +15 Mecánica.",
+        "tipo":        "positivo",
+        "categoria":   "conocimiento",
+        "efectos": {
+            "skills":         {"mecanica": 15},     # Categoría A
+            "puede_fabricar": True,                  # Categoría F (reservado)
+        },
+        "adquisicion": {
+            "tipo":   "acumulacion",
+            "skill":  "mecanica",
+            "umbral": 60,
+        },
+        "incompatible_con": [],
+    },
+
+    # ── NUEVOS — SISTEMA DE XP ────────────────────────────────
+
+    "aprendiz_rapido": {
+        "nombre":      "Aprendiz Rápido",
+        "icono":       "📖",
+        "descripcion": "Tu mente absorbe experiencias con facilidad. "
+                       "Ganas un 25% más de XP en todas las habilidades.",
+        "tipo":        "positivo",
+        "categoria":   "conocimiento",
+        "efectos": {
+            "xp_mult_global": 1.25,                 # Categoría B
+        },
+        "adquisicion": {
+            "tipo":     "acumulacion",
+            "contador": "expediciones_completadas",
+            "umbral":   15,                         # 15 expediciones sobrevividas
+        },
+        "incompatible_con": [],
+    },
+
+    "memoria_fotografica": {
+        "nombre":      "Memoria Fotográfica",
+        "icono":       "🧠",
+        "descripcion": "Lo que lees se graba. Los libros y manuales te enseñan "
+                       "un 50% más.",
+        "tipo":        "positivo",
+        "categoria":   "conocimiento",
+        "efectos": {
+            "xp_mult_libro": 1.50,                  # Categoría B
+        },
+        "adquisicion": {
+            "tipo":     "acumulacion",
+            "contador": "libros_leidos",
+            "umbral":   3,                          # leer 3 libros/manuales
+        },
+        "incompatible_con": [],
+    },
+
+    "especialista": {
+        "nombre":      "Especialista",
+        "icono":       "🏅",
+        "descripcion": "Cuando dominas algo de verdad, los resultados mejoran. "
+                       "Los checks de skills por encima de 70 se facilitan.",
+        "tipo":        "positivo",
+        "categoria":   "combate",
+        "efectos": {
+            "bonus_check_experto": 8,               # Categoría B (+8 al valor en checks)
+        },
+        "adquisicion": {
+            "tipo":   "acumulacion",
+            "skill":  "combate_cac",                # cualquier skill que llegue a 75
+            "umbral": 75,
+        },
+        "incompatible_con": [],
+    },
+
+    "curtido": {
+        "nombre":      "Curtido",
+        "icono":       "🪨",
+        "descripcion": "Lo que no te mata te endurece. "
+                       "+5 Salud máxima permanente.",
+        "tipo":        "positivo",
+        "categoria":   "supervivencia",
+        "efectos": {
+            "salud_max": 5,                         # Categoría A
+        },
+        "adquisicion": {
+            "tipo":     "acumulacion",
+            "contador": "veces_condicion_grave",    # condiciones de severidad 3
+            "umbral":   3,
+        },
+        "incompatible_con": [],
+    },
+
+    # ══════════════════════════════════════════════════════════
+    #  RASGOS POSITIVOS — SOCIAL
+    # ══════════════════════════════════════════════════════════
+
+    "cara_de_poker": {
+        "nombre":      "Cara de Póker",
+        "icono":       "🃏",
+        "descripcion": "En negociaciones, tus intenciones son ilegibles. +20 Persuasión.",
+        "tipo":        "positivo",
+        "categoria":   "social",
+        "efectos": {
+            "skills": {"persuasion": 20},           # Categoría A
+        },
+        "adquisicion": {
+            "tipo":   "acumulacion",
+            "skill":  "persuasion",
+            "umbral": 50,
+        },
+        "incompatible_con": [],
+    },
+
     "sangre_fria": {
         "nombre":      "Sangre Fría",
         "icono":       "🧊",
@@ -141,47 +263,12 @@ RASGOS = {
         "tipo":        "positivo",
         "categoria":   "mente",
         "efectos": {
-            "penalizacion_presion_mult": 0.5,
+            "penalizacion_presion_mult": 0.5,       # Categoría B
         },
         "adquisicion": {
-            "tipo":    "acumulacion",
+            "tipo":     "acumulacion",
             "contador": "veces_en_peligro_critico",
             "umbral":   5,
-        },
-        "incompatible_con": [],
-    },
-    "mecanico_improvisado": {
-        "nombre":      "Mecánico Improvisado",
-        "icono":       "⚙️",
-        "descripcion": "Puedes fabricar items básicos con chatarra. +15 Mecánica.",
-        "tipo":        "positivo",
-        "categoria":   "conocimiento",
-        "efectos": {
-            "skills": {"mecanica": 15},
-            "puede_fabricar": True,
-        },
-        "adquisicion": {
-            "tipo":    "acumulacion",
-            "skill":   "mecanica",
-            "umbral":  60,
-        },
-        "incompatible_con": [],
-    },
-
-    # ── SOCIAL ────────────────────────────────────────────────
-    "cara_de_poker": {
-        "nombre":      "Cara de Póker",
-        "icono":       "🃏",
-        "descripcion": "En negociaciones, tus intenciones son ilegibles. +20 Persuasión.",
-        "tipo":        "positivo",
-        "categoria":   "social",
-        "efectos": {
-            "skills": {"persuasion": 20},
-        },
-        "adquisicion": {
-            "tipo":    "acumulacion",
-            "skill":   "persuasion",
-            "umbral":  50,
         },
         "incompatible_con": [],
     },
@@ -197,15 +284,16 @@ RASGOS = {
         "tipo":        "negativo",
         "categoria":   "fisico",
         "efectos": {
-            "salud_max": -10,
+            "salud_max": -10,                       # Categoría A
         },
         "adquisicion": {
-            "tipo":    "acumulacion",
+            "tipo":     "acumulacion",
             "contador": "veces_en_peligro_critico",
             "umbral":   8,
         },
         "incompatible_con": [],
     },
+
     "claustrofobia": {
         "nombre":      "Claustrofobia",
         "icono":       "😰",
@@ -213,14 +301,15 @@ RASGOS = {
         "tipo":        "negativo",
         "categoria":   "mente",
         "efectos": {
-            "skills_en_interior": {"sigilo": -15},
+            "skills_en_interior": {"sigilo": -15},  # Categoría C
         },
         "adquisicion": {
-            "tipo":    "evento",
-            "evento":  "quedar_atrapado",
+            "tipo":   "evento",
+            "evento": "quedar_atrapado",
         },
         "incompatible_con": [],
     },
+
     "adiccion_morfina": {
         "nombre":      "Adicción (Morfina)",
         "icono":       "💉",
@@ -228,16 +317,17 @@ RASGOS = {
         "tipo":        "negativo",
         "categoria":   "fisico",
         "efectos": {
-            "dependencia_item": "morfina",
+            "dependencia_item":     "morfina",      # Categoría D — key de ITEMS
             "penalizacion_sin_item": {"stats_global": -2},
         },
         "adquisicion": {
-            "tipo":    "acumulacion",
+            "tipo":       "acumulacion",
             "item_usado": "morfina",
-            "umbral":     5,         # usar morfina 5 veces
+            "umbral":     5,
         },
         "incompatible_con": [],
     },
+
     "pesadillas": {
         "nombre":      "Pesadillas",
         "icono":       "💀",
@@ -245,11 +335,11 @@ RASGOS = {
         "tipo":        "negativo",
         "categoria":   "mente",
         "efectos": {
-            "recuperacion_descanso_mult": 0.70,
+            "recuperacion_descanso_mult": 0.70,     # Categoría B
         },
         "adquisicion": {
-            "tipo":    "acumulacion",
-            "contador": "muertes_vistas",   # testigo de muertes de NPCs
+            "tipo":     "acumulacion",
+            "contador": "muertes_vistas",
             "umbral":   3,
         },
         "incompatible_con": [],
@@ -266,15 +356,16 @@ RASGOS = {
         "tipo":        "background",
         "categoria":   "conocimiento",
         "efectos": {
-            "multiplicador_medicina": 1.25,
-            "skills": {"medicina": 10},
+            "multiplicador_medicina": 1.25,         # Categoría B
+            "skills": {"medicina": 10},             # Categoría A
         },
         "adquisicion": {
-            "tipo":    "background",
+            "tipo":       "background",
             "background": "Médico/a de emergencias",
         },
         "incompatible_con": [],
     },
+
     "ingenio_mecanico": {
         "nombre":      "Ingenio Mecánico",
         "icono":       "🔧",
@@ -282,15 +373,16 @@ RASGOS = {
         "tipo":        "background",
         "categoria":   "conocimiento",
         "efectos": {
-            "puede_fabricar": True,
-            "skills": {"mecanica": 10},
+            "puede_fabricar": True,                  # Categoría F (reservado)
+            "skills": {"mecanica": 10},             # Categoría A
         },
         "adquisicion": {
-            "tipo":    "background",
+            "tipo":       "background",
             "background": "Mecánico/a automotriz",
         },
         "incompatible_con": [],
     },
+
     "disciplina_combate": {
         "nombre":      "Disciplina de Combate",
         "icono":       "🎖️",
@@ -298,31 +390,33 @@ RASGOS = {
         "tipo":        "background",
         "categoria":   "combate",
         "efectos": {
-            "inmune_panico": True,
-            "skills": {"combate_cac": 10, "combate_distancia": 10},
+            "inmune_panico": True,                   # Categoría E (reservado)
+            "skills": {"combate_cac": 10, "combate_distancia": 10},  # A
         },
         "adquisicion": {
-            "tipo":    "background",
+            "tipo":       "background",
             "background": "Militar/ex-policía",
         },
         "incompatible_con": [],
     },
+
     "hijo_de_la_tierra": {
         "nombre":      "Hijo de la Tierra",
         "icono":       "🌱",
-        "descripcion": "Sabes qué es comestible en la naturaleza. Reducción de hambre +10%.",
+        "descripcion": "Sabes qué es comestible en la naturaleza. El cuerpo aprovecha mejor la comida.",
         "tipo":        "background",
         "categoria":   "supervivencia",
         "efectos": {
-            "multiplicador_consumo_hambre": 0.90,
-            "skills": {"supervivencia": 10},
+            "multiplicador_consumo_hambre": 0.90,   # Categoría B
+            "skills": {"supervivencia": 10},        # Categoría A
         },
         "adquisicion": {
-            "tipo":    "background",
+            "tipo":       "background",
             "background": "Granjero/a",
         },
         "incompatible_con": [],
     },
+
     "mente_analitica": {
         "nombre":      "Mente Analítica",
         "icono":       "🔬",
@@ -330,14 +424,15 @@ RASGOS = {
         "tipo":        "background",
         "categoria":   "conocimiento",
         "efectos": {
-            "skills": {"medicina": 10, "mecanica": 10},
+            "skills": {"medicina": 10, "mecanica": 10},  # Categoría A
         },
         "adquisicion": {
-            "tipo":    "background",
+            "tipo":       "background",
             "background": "Científico/a",
         },
         "incompatible_con": [],
     },
+
     "dedos_ligeros": {
         "nombre":      "Dedos Ligeros",
         "icono":       "🖐️",
@@ -345,28 +440,27 @@ RASGOS = {
         "tipo":        "background",
         "categoria":   "supervivencia",
         "efectos": {
-            "skills": {"sigilo": 15, "saqueo": 5},
+            "skills": {"sigilo": 15, "saqueo": 5},  # Categoría A
         },
         "adquisicion": {
-            "tipo":    "background",
+            "tipo":       "background",
             "background": "Ladrón/Carterista",
         },
         "incompatible_con": [],
     },
 
     # ── EJEMPLO: cómo agregar un rasgo nuevo ──────────────────
-    # "visión_nocturna": {
+    # "vision_nocturna": {
     #     "nombre":      "Visión Nocturna",
     #     "icono":       "🌙",
     #     "descripcion": "Adaptado a la oscuridad. Sin penalizaciones de noche.",
     #     "tipo":        "positivo",
     #     "categoria":   "supervivencia",
     #     "efectos": {
-    #         "sin_penalizacion_noche": True,
-    #         "skills": {"sigilo": 10},
+    #         "skills_en_noche": {"sigilo": 10},    # Categoría C (cuando exista)
     #     },
     #     "adquisicion": {
-    #         "tipo":    "acumulacion",
+    #         "tipo":     "acumulacion",
     #         "contador": "expediciones_nocturnas",
     #         "umbral":   10,
     #     },

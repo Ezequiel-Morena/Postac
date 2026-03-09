@@ -106,11 +106,18 @@ class Bitacora:
 # ──────────────────────────────────────────────────────────────
 #  RENDERIZADO TERMINAL
 # ──────────────────────────────────────────────────────────────
+
 def render_terminal(bitacora: Bitacora, personaje,
-                    loot_total: list[dict]) -> str:
+                    loot_total: list[dict],
+                    progreso_skills: list[str] | None = None) -> str:
+    """
+    Genera el texto con colores ANSI para mostrar en terminal.
+    progreso_skills: mensajes de skills que subieron durante el tick.
+    Se muestran al final en la sección PROGRESO (opción B).
+    """
     from data.rasgos import RASGOS
     lineas = []
-    sep = "═" * 62
+    sep    = "═" * 62
 
     lineas.append(f"\n{VE}{NE}{sep}")
     lineas.append(f"  BITÁCORA — DÍA {bitacora.dia}")
@@ -137,17 +144,17 @@ def render_terminal(bitacora: Bitacora, personaje,
         ll = int((v / max(1, m)) * w)
         return f"[{'█'*ll}{'░'*(w-ll)}]"
 
-    sp  = p.salud / p.salud_max * 100
-    cs  = VE if sp >= 60 else (AM if sp >= 30 else RO)
-    lineas.append(f"  Salud     {cs}{barra(p.salud,p.salud_max)} "
+    sp = p.salud / p.salud_max * 100
+    cs = VE if sp >= 60 else (AM if sp >= 30 else RO)
+    lineas.append(f"  Salud     {cs}{barra(p.salud, p.salud_max)} "
                    f"{p.salud}/{p.salud_max}{R}")
-    ch  = VE if p.hambre < 50 else (AM if p.hambre < 75 else RO)
+    ch = VE if p.hambre < 50 else (AM if p.hambre < 75 else RO)
     lineas.append(f"  Hambre    {ch}{barra(100-p.hambre,100)} {p.hambre}/100{R}")
     cs2 = VE if p.sed < 50 else (AM if p.sed < 75 else RO)
     lineas.append(f"  Sed       {cs2}{barra(100-p.sed,100)} {p.sed}/100{R}")
-    cf  = VE if p.fatiga < 50 else (AM if p.fatiga < 75 else RO)
+    cf = VE if p.fatiga < 50 else (AM if p.fatiga < 75 else RO)
     lineas.append(f"  Fatiga    {cf}{barra(100-p.fatiga,100)} {p.fatiga}/100{R}")
-    cm  = VE if p.moral >= 60 else (AM if p.moral >= 30 else RO)
+    cm = VE if p.moral >= 60 else (AM if p.moral >= 30 else RO)
     lineas.append(f"  Moral     {cm}{barra(p.moral,100)} {p.moral}/100{R}")
     if p.radiacion > 0:
         lineas.append(f"  Radiación {RO}{barra(p.radiacion,100)} "
@@ -168,18 +175,35 @@ def render_terminal(bitacora: Bitacora, personaje,
         nombres = [RASGOS[r]["nombre"] for r in p.rasgos if r in RASGOS]
         lineas.append(f"\n{CI}  Rasgos: {', '.join(nombres)}{R}")
 
+    # ── SECCIÓN PROGRESO ──────────────────────────────────────
+    # Muestra todas las subidas de skill del tick de una vez.
+    # Opción B: al final, no inline durante los eventos.
+    if progreso_skills:
+        lineas.append(f"\n{VE}{NE}{'─'*62}")
+        lineas.append(f"  ↑ PROGRESO DE HABILIDADES")
+        lineas.append(f"{'─'*62}{R}")
+        for msg in progreso_skills:
+            lineas.append(f"  {VE}{msg}{R}")
+
     lineas.append(f"{AM}{NE}{'═'*62}{R}\n")
     return "\n".join(lineas)
 
 
 # ──────────────────────────────────────────────────────────────
-#  TEXTO PLANO (para imagen)
+#  TEXTO PLANO (para imagen PNG)
 # ──────────────────────────────────────────────────────────────
+
 def render_texto_plano(bitacora: Bitacora, personaje,
-                        loot_total: list[dict], area_nombre: str) -> str:
+                        loot_total: list[dict],
+                        area_nombre: str,
+                        progreso_skills: list[str] | None = None) -> str:
+    """
+    Genera el texto sin colores ANSI para exportar como imagen PNG.
+    progreso_skills se muestra en la sección PROGRESO al final.
+    """
     from data.rasgos import RASGOS
     lineas = []
-    sep = "=" * 56
+    sep    = "=" * 56
 
     lineas += [sep, f"  BITÁCORA — DÍA {bitacora.dia}",
                f"  {personaje.nombre} {personaje.apellido} | "
@@ -196,6 +220,7 @@ def render_texto_plano(bitacora: Bitacora, personaje,
             lineas.append(f"  [{hora}] {texto}")
 
     lineas += ["", "-"*56, "  ESTADO FINAL", "-"*56]
+
     p = personaje
     lineas.append(f"  Salud:   {p.salud}/{p.salud_max}  ({p.estado_salud_texto()})")
     lineas.append(f"  Hambre:  {p.hambre}/100{'  ¡CRÍTICO!' if p.hambre>80 else ''}")
@@ -222,6 +247,12 @@ def render_texto_plano(bitacora: Bitacora, personaje,
         nombres = [RASGOS[r]["nombre"] for r in p.rasgos if r in RASGOS]
         lineas += ["", f"  Rasgos activos: {', '.join(nombres)}"]
 
+    # ── SECCIÓN PROGRESO ──────────────────────────────────────
+    if progreso_skills:
+        lineas += ["", "-"*56, "  PROGRESO DE HABILIDADES", "-"*56]
+        for msg in progreso_skills:
+            lineas.append(f"  ↑ {msg}")
+
     lineas += ["", sep,
                f"  Expediciones: {p.expediciones_completadas}  "
                f"Infectados: {p.infectados_eliminados}  "
@@ -233,6 +264,7 @@ def render_texto_plano(bitacora: Bitacora, personaje,
 # ──────────────────────────────────────────────────────────────
 #  EXPORTAR PNG
 # ──────────────────────────────────────────────────────────────
+
 _FUENTES = [
     "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
     "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
@@ -259,20 +291,25 @@ def _cargar_fuente(candidatas, size):
 
 
 def _color_linea(linea: str) -> tuple:
-    if any(k in linea for k in ["BITÁCORA", "RESUMEN", "===", "DÍA", "---"]):
+    if any(k in linea for k in ["BITÁCORA", "RESUMEN", "===", "DÍA", "---",
+                                  "ESTADO FINAL", "PROGRESO"]):
         return (220, 200, 80)
     if any(k in linea for k in ["COMBATE", "INFECTADO", "BANDIDO", "✖",
                                   "daño", "hp", "golpea", "EMBOSCADA"]):
         return (220, 80, 80)
-    if any(k in linea for k in ["Encontrado:", "Buena cosecha", "+", "obtenidos"]):
+    if any(k in linea for k in ["Encontrado:", "Buena cosecha", "+", "obtenidos",
+                                  "Objetos"]):
         return (140, 230, 100)
     if any(k in linea for k in ["📍", "EVENTO", "Encontraste", "Descubriste"]):
         return (80, 200, 200)
     if any(k in linea for k in ["Salud", "Hambre", "Sed", "Fatiga", "Moral",
                                   "Radiación", "Expediciones", "ESTADO"]):
         return (220, 200, 80)
-    if any(k in linea for k in ["CRÍTICO", "Agonizante", "☢", "Condiciones"]):
+    if any(k in linea for k in ["CRÍTICO", "Agonizante", "☢", "Condiciones",
+                                  "Abstinencia", "⚠"]):
         return (220, 80, 80)
+    if linea.strip().startswith("↑"):
+        return (100, 220, 180)  # verde-cian para el progreso de skills
     if linea.strip() == "" or all(c in "=-─═" for c in linea.strip() if c != " "):
         return (40, 80, 40)
     return (200, 210, 200)
@@ -302,10 +339,10 @@ def exportar_imagen(texto_plano: str, ruta_salida: str) -> str:
 
     alto  = MY * 2 + len(lineas) * LH + 60
     img   = Image.new("RGB", (ANCHO, alto), color=(10, 12, 10))
-    draw  = ImageDraw.Draw(img)
+    from PIL import ImageDraw as _ID
+    draw  = _ID.Draw(img)
     draw.rectangle([2, 2, ANCHO-3, alto-3], outline=(30, 60, 30), width=2)
 
-    # Ruido de terminal
     import random as _r
     for _ in range(400):
         draw.point((_r.randint(0,ANCHO-1), _r.randint(0,alto-1)), fill=(15,25,15))
@@ -317,7 +354,7 @@ def exportar_imagen(texto_plano: str, ruta_salida: str) -> str:
     for linea in lineas:
         col  = _color_linea(linea)
         bold = any(k in linea for k in ["BITÁCORA", "RESUMEN", "ESTADO FINAL",
-                                          "COMBATE —", "==="])
+                                          "COMBATE —", "===", "PROGRESO"])
         draw.text((MX, y), linea, fill=col, font=font_bold if bold else font)
         y += LH
 
@@ -336,9 +373,8 @@ def exportar_perfil(personaje, ruta_salida: str) -> str:
 
     font      = _cargar_fuente(_FUENTES, 17)
     font_bold = _cargar_fuente(_FUENTES_BOLD, 19)
-    font_sm   = _cargar_fuente(_FUENTES, 14)
 
-    W, H = 700, 560
+    W, H = 700, 580
     img  = Image.new("RGB", (W, H), color=(10, 12, 10))
     draw = ImageDraw.Draw(img)
     draw.rectangle([2, 2, W-3, H-3], outline=(40, 90, 40), width=2)
@@ -357,55 +393,33 @@ def exportar_perfil(personaje, ruta_salida: str) -> str:
        (200,210,200), bold=True)
     wr(f"  {personaje.background['nombre']}", (80,200,200))
     wr(f"  Día {personaje.dia} — {personaje.hora:02d}:00hs  "
-       f"| Exp: {personaje.expediciones_completadas}", (100,130,100))
+       f"| Exp.: {personaje.expediciones_completadas}", (90,130,90))
     wr("─"*52, (40,80,40))
 
+    # Stats
     wr("  ESTADÍSTICAS", (220,200,80), bold=True)
-    fila = "  " + "   ".join(
-        f"{STATS[k]['abrev']}:{personaje.stats[k]:2d}"
-        for k in STATS
-    )
-    wr(fila, (140,230,100))
+    stat_names = {"fuerza": "FUE", "destreza": "DES", "resistencia": "RES",
+                  "percepcion": "PER", "inteligencia": "INT", "suerte": "SRT"}
+    row = "  " + "   ".join(f"{abr}:{personaje.stats[k]:2d}"
+                              for k, abr in stat_names.items())
+    wr(row)
 
     wr("─"*52, (40,80,40))
-    wr("  VITALES", (220,200,80), bold=True)
-
-    def barra_img(v, m=100, w=15):
-        ll = int((v/max(1,m))*w)
-        return f"[{'█'*ll}{'░'*(w-ll)}] {v}/{m}"
-
-    cs = (140,230,100) if personaje.salud > 50 else ((220,200,80) if personaje.salud > 25 else (220,80,80))
-    wr(f"  Salud   {barra_img(personaje.salud, personaje.salud_max)}", cs)
-    wr(f"  Hambre  {barra_img(100-personaje.hambre)}",
-       (220,80,80) if personaje.hambre>70 else (140,230,100))
-    wr(f"  Sed     {barra_img(100-personaje.sed)}",
-       (220,80,80) if personaje.sed>70 else (140,230,100))
-    wr(f"  Moral   {barra_img(personaje.moral)}",
-       (220,80,80) if personaje.moral<30 else (140,230,100))
+    wr("  HABILIDADES", (220,200,80), bold=True)
+    for sk_key, sk_def in SKILLS.items():
+        nivel = personaje.skills.get(sk_key, 0)
+        xp    = personaje.skills_xp.get(sk_key, 0)
+        xp_max = sk_def.get("xp_base", 10) + (nivel // 10) * sk_def.get("xp_incremento", 5)
+        barra_ll = int((xp / max(1, xp_max)) * 10)
+        barra = f"[{'█'*barra_ll}{'░'*(10-barra_ll)}]"
+        wr(f"  {sk_def['icono']} {sk_def['nombre']:<22} {nivel:3d}  {barra} {xp}/{xp_max}xp",
+           indent=0)
 
     wr("─"*52, (40,80,40))
-    wr(f"  INVENTARIO  ({personaje.peso_actual():.1f}/{personaje.peso_max}kg)",
-       (220,200,80), bold=True)
-    for item in personaje.inventario[:7]:
-        cant = f" x{item.get('cantidad','')}" if item.get("cantidad",1)>1 else ""
-        draw.text((40, y), f"    {item['nombre']}{cant}", fill=(140,230,100), font=font_sm)
-        y += 22
-    if len(personaje.inventario) > 7:
-        draw.text((40, y), f"    ...y {len(personaje.inventario)-7} más.",
-                  fill=(100,130,100), font=font_sm)
-        y += 22
-
     if personaje.rasgos:
-        y += 4
-        draw.text((28, y), "─"*52, fill=(40,80,40), font=font); y+=22
-        draw.text((28, y), "  RASGOS", fill=(220,200,80), font=font_bold); y+=26
         nombres = [RASGOS[r]["nombre"] for r in personaje.rasgos if r in RASGOS]
-        draw.text((28, y), "  " + ", ".join(nombres), fill=(80,200,200), font=font_sm)
-        y += 22
+        wr("  Rasgos: " + ", ".join(nombres), (80,200,200))
 
     wr("═"*52, (40,80,40))
     img.save(ruta_salida, "PNG", optimize=True)
     return ruta_salida
-
-
-import textwrap  # necesario para exportar_imagen

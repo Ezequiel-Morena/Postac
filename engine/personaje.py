@@ -5,22 +5,22 @@
 import random
 import copy
 
-# Los datos viven en data/, la lógica aquí
-from data.stats    import STATS, VITALES
-from data.skills   import SKILLS
-from data.rasgos   import RASGOS
-from data.items    import ITEMS
+from data.stats      import STATS, VITALES
+from data.skills     import SKILLS
+from data.rasgos     import RASGOS
+from data.items      import ITEMS
 from data.personajes import NOMBRES, BACKGROUNDS
 
 
 class Condicion:
     """Estado temporal o permanente que afecta al personaje."""
+
     def __init__(self, clave: str, nombre: str, severidad: int,
                  duracion: int, efectos: dict, descripcion: str = ""):
         self.clave       = clave
         self.nombre      = nombre
-        self.severidad   = severidad    # 1=leve 2=moderado 3=grave
-        self.duracion    = duracion     # -1=permanente hasta tratar
+        self.severidad   = severidad    # 1=leve  2=moderado  3=grave
+        self.duracion    = duracion     # -1 = permanente hasta tratar
         self.efectos     = efectos
         self.descripcion = descripcion
         self.turnos_rest = duracion
@@ -52,8 +52,8 @@ class Sobreviviente:
         self.edad     = random.randint(19, 54)
 
         # Elegir background
-        bg_key         = random.choice(list(BACKGROUNDS.keys()))
-        self.bg_key    = bg_key
+        bg_key          = random.choice(list(BACKGROUNDS.keys()))
+        self.bg_key     = bg_key
         self.background = BACKGROUNDS[bg_key]
 
         # ── STATS (construidas desde STATS) ───────────────────
@@ -61,7 +61,7 @@ class Sobreviviente:
         for stat_key, defn in STATS.items():
             self.stats[stat_key] = defn["min"] + 2   # base = min+2
         # Distribuir puntos libres
-        puntos = 18
+        puntos    = 18
         stat_keys = list(STATS.keys())
         for _ in range(puntos):
             k = random.choice(stat_keys)
@@ -73,35 +73,34 @@ class Sobreviviente:
                 self.stats[stat_key] = min(STATS[stat_key]["max"],
                                             self.stats[stat_key] + bonus)
 
-        # ── VITALES (construidos desde VITALES) ───────────────
-        # Primero calcular salud máxima con bonus de Resistencia
+        # ── VITALES ───────────────────────────────────────────
         res_val     = self.stats.get("resistencia", 3)
         res_pasivos = STATS["resistencia"].get("efectos_pasivos", {})
-        self.salud_max  = int(VITALES["salud"]["base"]
-                               + res_val * res_pasivos.get("salud_max", 0))
+        self.salud_max   = int(VITALES["salud"]["base"]
+                                + res_val * res_pasivos.get("salud_max", 0))
         self.energia_max = int(VITALES["salud"].get("base", 40)
                                 + res_val * res_pasivos.get("energia_max", 0))
-        self.salud   = self.salud_max
-        self.energia = self.energia_max
+        self.salud    = self.salud_max
+        self.energia  = self.energia_max
 
-        # Medidores de supervivencia (empiezan en base)
-        self.hambre   = VITALES["hambre"]["base"]
-        self.sed      = VITALES["sed"]["base"]
-        self.fatiga   = VITALES["fatiga"]["base"]
-        self.moral    = VITALES["moral"]["base"]
+        self.hambre    = VITALES["hambre"]["base"]
+        self.sed       = VITALES["sed"]["base"]
+        self.fatiga    = VITALES["fatiga"]["base"]
+        self.moral     = VITALES["moral"]["base"]
         self.radiacion = VITALES["radiacion"]["base"]
 
-        # ── SKILLS (derivadas desde SKILLS) ───────────────────
+        # ── SKILLS ────────────────────────────────────────────
         self.skills: dict[str, int] = self._calcular_skills()
-        # Aplicar bonus del background
         for skill_key, bonus in self.background["bonus_skills"].items():
             if skill_key in self.skills:
                 self.skills[skill_key] = min(SKILLS[skill_key]["max"],
                                               self.skills[skill_key] + bonus)
 
+        # Pool de XP acumulada por skill (persistido en save)
+        self.skills_xp: dict[str, int] = {k: 0 for k in self.skills}
+
         # ── RASGOS ────────────────────────────────────────────
         self.rasgos: list[str] = []
-        # Asignar rasgos de background
         for rasgo_key in self.background.get("rasgos", []):
             self._aplicar_rasgo(rasgo_key)
 
@@ -109,35 +108,38 @@ class Sobreviviente:
         self.condiciones: list[Condicion] = []
 
         # ── INVENTARIO ────────────────────────────────────────
-        # Carga base desde Fuerza + efectos pasivos
         fuerza_pasivos = STATS["fuerza"].get("efectos_pasivos", {})
         self.peso_max: float = 10.0 + self.stats["fuerza"] * fuerza_pasivos.get("carga_max", 2.0)
         self.inventario: list[dict] = []
         self._equipar_items_inicio()
 
         # ── CONTADORES / HISTORIAL ────────────────────────────
-        self.dia                       = 1
-        self.hora                      = 8
-        self.expediciones_completadas  = 0
-        self.infectados_eliminados     = 0
-        self.bandidos_eliminados       = 0
-        self.veces_en_peligro_critico  = 0
-        self.items_recolectados        = 0
-        self.muertes_vistas            = 0
-        self.expediciones_nocturnas    = 0
-        self.usos_morfina              = 0
-        self.areas_visitadas: list[str]       = []
-        self.info_areas: dict[str, dict]      = {}
-        self.rasgos_en_progreso: dict[str, int] = {}  # clave: contador actual
+        self.dia                      = 1
+        self.hora                     = 8
+        self.expediciones_completadas = 0
+        self.infectados_eliminados    = 0
+        self.bandidos_eliminados      = 0
+        self.veces_en_peligro_critico = 0
+        self.items_recolectados       = 0
+        self.muertes_vistas           = 0
+        self.expediciones_nocturnas   = 0
+        self.usos_morfina             = 0
+        self.libros_leidos            = 0
+        self.veces_condicion_grave    = 0
+        self.areas_visitadas: list[str]     = []
+        self.info_areas: dict[str, dict]    = {}
+        self.rasgos_en_progreso: dict[str, int] = {}
+
+        # Buffer transiente — se limpia en recoger_progreso_skills().
+        # NO se persiste en el save: siempre empieza vacío.
+        self._progreso_skills_pendiente: list[str] = []
 
     # ─────────────────────────────────────────────────────────
     #  CONSTRUCCIÓN DE SKILLS
     # ─────────────────────────────────────────────────────────
+
     def _calcular_skills(self) -> dict[str, int]:
-        """
-        Deriva todas las skills definidas en data/skills.py
-        usando las fórmulas declaradas en 'derivacion'.
-        """
+        """Deriva todas las skills desde data/skills.py usando fórmulas de derivacion."""
         resultado = {}
         for skill_key, defn in SKILLS.items():
             valor = sum(self.stats.get(stat, 0) * mult
@@ -146,16 +148,73 @@ class Sobreviviente:
         return resultado
 
     # ─────────────────────────────────────────────────────────
+    #  SISTEMA DE XP
+    # ─────────────────────────────────────────────────────────
+
+    def ganar_xp_skill(self, skill_key: str, xp_base: int) -> None:
+        """
+        Acumula XP en una skill y sube su valor cuando hay suficiente.
+
+        La curva de progreso escala con el nivel actual de la skill:
+          xp_necesaria = xp_base_skill + (nivel // 10) * xp_incremento_skill
+
+        Los mensajes de subida se acumulan en _progreso_skills_pendiente
+        y se muestran todos juntos al final del tick (opción B).
+        """
+        if skill_key not in self.skills:
+            return
+
+        defn      = SKILLS.get(skill_key, {})
+        skill_max = defn.get("max", 100)
+
+        if self.skills[skill_key] >= skill_max:
+            return
+
+        # Multiplicador global de rasgos (aprendiz_rapido, etc.)
+        mult_global = self.obtener_efecto_rasgo("xp_mult_global", 1.0)
+        xp = max(1, int(xp_base * mult_global))
+
+        self.skills_xp[skill_key] = self.skills_xp.get(skill_key, 0) + xp
+
+        # Subir nivel mientras haya XP suficiente acumulada
+        while self.skills[skill_key] < skill_max:
+            nivel_actual = self.skills[skill_key]
+            xp_necesaria = (defn.get("xp_base", 10)
+                            + (nivel_actual // 10) * defn.get("xp_incremento", 5))
+            if self.skills_xp[skill_key] >= xp_necesaria:
+                self.skills_xp[skill_key] -= xp_necesaria
+                self.skills[skill_key]    += 1
+                self._progreso_skills_pendiente.append(
+                    f"{defn.get('icono', '📈')} {defn['nombre']}  "
+                    f"{nivel_actual} → {nivel_actual + 1}"
+                )
+            else:
+                break
+
+        if self._progreso_skills_pendiente:
+            self.evaluar_rasgos_nuevos()
+
+    def recoger_progreso_skills(self) -> list[str]:
+        """
+        Retorna y limpia los mensajes de progreso acumulados durante el tick.
+        Llamar al final de ejecutar_expedicion / ejecutar_descanso para
+        obtener todo el progreso de una vez (Opción B: sección PROGRESO).
+        """
+        msgs = self._progreso_skills_pendiente.copy()
+        self._progreso_skills_pendiente.clear()
+        return msgs
+
+    # ─────────────────────────────────────────────────────────
     #  RASGOS
     # ─────────────────────────────────────────────────────────
-    def _aplicar_rasgo(self, rasgo_key: str):
+
+    def _aplicar_rasgo(self, rasgo_key: str) -> None:
         if rasgo_key not in RASGOS:
             return
         if rasgo_key in self.rasgos:
             return
 
         rasgo = RASGOS[rasgo_key]
-        # Verificar incompatibilidades
         for incompat in rasgo.get("incompatible_con", []):
             if incompat in self.rasgos:
                 return
@@ -163,71 +222,126 @@ class Sobreviviente:
         self.rasgos.append(rasgo_key)
         efectos = rasgo.get("efectos", {})
 
-        # Aplicar bonus de skills
+        # Categoría A — efectos que se aplican una sola vez al adquirir
         for skill_key, bonus in efectos.get("skills", {}).items():
             if skill_key in self.skills:
                 self.skills[skill_key] = min(100, self.skills[skill_key] + bonus)
 
-        # Aplicar bonus de salud máxima
         if "salud_max" in efectos:
             self.salud_max = max(10, self.salud_max + efectos["salud_max"])
             self.salud     = min(self.salud, self.salud_max)
 
-        # Aplicar bonus de carga
         if "carga_max" in efectos:
             self.peso_max += efectos["carga_max"]
 
     def tiene_rasgo(self, rasgo_key: str) -> bool:
         return rasgo_key in self.rasgos
 
-    def evaluar_rasgos_nuevos(self):
+    def evaluar_rasgos_nuevos(self) -> None:
         """
-        Revisa si algún rasgo se debe desbloquear por acumulación.
-        Llamar después de expediciones y eventos importantes.
+        Revisa si algún rasgo debe desbloquearse por acumulación.
+        Llamar después de expediciones, eventos importantes y subidas de skill.
         """
         for rasgo_key, rasgo in RASGOS.items():
             if rasgo_key in self.rasgos:
                 continue
-            adq = rasgo.get("adquisicion", {})
+            adq  = rasgo.get("adquisicion", {})
             tipo = adq.get("tipo")
 
-            if tipo == "acumulacion":
-                if "skill" in adq:
-                    valor_actual = self.skills.get(adq["skill"], 0)
-                    if valor_actual >= adq["umbral"]:
-                        self._aplicar_rasgo(rasgo_key)
-                elif "stat" in adq:
-                    valor_actual = self.stats.get(adq["stat"], 0)
-                    if valor_actual >= adq["umbral"]:
-                        self._aplicar_rasgo(rasgo_key)
-                elif "contador" in adq:
-                    valor_actual = getattr(self, adq["contador"], 0)
-                    if valor_actual >= adq["umbral"]:
-                        self._aplicar_rasgo(rasgo_key)
-                elif "item_usado" in adq:
-                    if adq["item_usado"] == "morfina":
-                        if self.usos_morfina >= adq["umbral"]:
-                            self._aplicar_rasgo(rasgo_key)
+            if tipo != "acumulacion":
+                continue
+
+            if "skill" in adq:
+                valor_actual = self.skills.get(adq["skill"], 0)
+            elif "stat" in adq:
+                valor_actual = self.stats.get(adq["stat"], 0)
+            elif "contador" in adq:
+                valor_actual = getattr(self, adq["contador"], 0)
+            elif "item_usado" in adq:
+                # Caso especial: rasgos disparados por uso de items específicos
+                dep_item = adq["item_usado"]
+                valor_actual = self.usos_morfina if dep_item == "morfina" else 0
+            else:
+                continue
+
+            if valor_actual >= adq["umbral"]:
+                self._aplicar_rasgo(rasgo_key)
 
     def obtener_efecto_rasgo(self, clave_efecto: str, default=None):
-        """Retorna el valor acumulado de un efecto de todos los rasgos activos."""
+        """
+        Retorna el valor del primer rasgo activo que tenga ese efecto.
+        Para efectos acumulativos (multiplicadores) se retorna el primero encontrado;
+        para el futuro con múltiples rasgos del mismo tipo se deberá componer.
+        """
         for rasgo_key in self.rasgos:
-            rasgo = RASGOS.get(rasgo_key, {})
+            rasgo   = RASGOS.get(rasgo_key, {})
             efectos = rasgo.get("efectos", {})
             if clave_efecto in efectos:
                 return efectos[clave_efecto]
         return default
 
+    def modificador_skill_en_contexto(self, skill_key: str, contexto: str) -> int:
+        """
+        Retorna el modificador acumulado de una skill para un contexto específico.
+        Contextos actuales: 'interior'
+        El formato del efecto en el rasgo es: skills_en_{contexto}: {skill: mod}
+        """
+        clave = f"skills_en_{contexto}"
+        mod   = 0
+        for rasgo_key in self.rasgos:
+            rasgo   = RASGOS.get(rasgo_key, {})
+            efectos = rasgo.get("efectos", {})
+            mod    += efectos.get(clave, {}).get(skill_key, 0)
+        return mod
+
+    def tiene_inmunidad(self, tipo_inmunidad: str) -> bool:
+        """
+        Verifica si algún rasgo activo otorga inmunidad al tipo especificado.
+        Uso: personaje.tiene_inmunidad("envenenamiento_comida")
+        """
+        return bool(self.obtener_efecto_rasgo(f"inmune_{tipo_inmunidad}", False))
+
+    def tick_dependencias(self) -> list[str]:
+        """
+        Aplica penalizaciones activas por dependencias (adicciones).
+        Llamar al inicio de cada tick global antes de resolver la acción.
+        Retorna mensajes de penalización para informar al jugador.
+        """
+        mensajes = []
+        for rasgo_key in self.rasgos:
+            rasgo   = RASGOS.get(rasgo_key, {})
+            efectos = rasgo.get("efectos", {})
+            dep_key = efectos.get("dependencia_item")
+            if not dep_key:
+                continue
+
+            # Buscar el nombre del item en ITEMS para comparar con inventario
+            item_def    = ITEMS.get(dep_key, {})
+            item_nombre = item_def.get("nombre", dep_key.capitalize())
+
+            if not self.tiene_item(item_nombre):
+                penal = efectos.get("penalizacion_sin_item", {})
+                delta = penal.get("stats_global", 0)
+                if delta != 0:
+                    for stat_key in self.stats:
+                        self.stats[stat_key] = max(1, self.stats[stat_key] + delta)
+                    nombre_rasgo = rasgo.get("nombre", rasgo_key)
+                    mensajes.append(
+                        f"⚠ Abstinencia ({nombre_rasgo}): "
+                        f"todas las stats {delta:+d} este turno."
+                    )
+        return mensajes
+
     # ─────────────────────────────────────────────────────────
     #  INVENTARIO
     # ─────────────────────────────────────────────────────────
-    def _equipar_items_inicio(self):
+
+    def _equipar_items_inicio(self) -> None:
         """Lee los items de inicio del background y los añade al inventario."""
         for item_ref in self.background.get("items_inicio", []):
             ref_key = item_ref.get("ref")
             if ref_key and ref_key in ITEMS:
                 item = copy.deepcopy(ITEMS[ref_key])
-                # Override de nombre/campos si el background lo especifica
                 for campo in ("nombre", "tipo", "peso", "desc"):
                     if campo in item_ref:
                         item[campo] = item_ref[campo]
@@ -235,7 +349,6 @@ class Sobreviviente:
                     item["cantidad"] = item_ref["cantidad_override"]
                 self.inventario.append(item)
             elif "nombre" in item_ref:
-                # Item personalizado que no está en ITEMS
                 self.inventario.append(copy.deepcopy(item_ref))
 
     def peso_actual(self) -> float:
@@ -247,7 +360,6 @@ class Sobreviviente:
     def añadir_item(self, item: dict) -> bool:
         if not self.puede_cargar(item):
             return False
-        # Apilar ítems stackables por nombre
         if "cantidad" in item:
             for inv_item in self.inventario:
                 if inv_item.get("nombre") == item["nombre"] and "cantidad" in inv_item:
@@ -278,49 +390,57 @@ class Sobreviviente:
             return False, f"No tienes {nombre}"
 
         efectos = item.get("efectos", {})
-        msgs = []
+        msgs    = []
 
-        # Multiplicador de rasgos médicos
+        # ── Efectos de salud ──────────────────────────────────
         mult_med = self.obtener_efecto_rasgo("multiplicador_medicina", 1.0)
-
         if "salud" in efectos:
             ganado = int(min(efectos["salud"] * mult_med,
                               self.salud_max - self.salud))
             self.salud += ganado
             msgs.append(f"+{ganado} Salud")
 
+        # ── Efectos de hambre ─────────────────────────────────
         if "hambre" in efectos:
-            # Multiplicador de metabolismo lento
             mult_ham = self.obtener_efecto_rasgo("multiplicador_consumo_hambre", 1.0)
             delta = int(efectos["hambre"] / mult_ham)
             self.hambre = max(0, self.hambre + delta)
             msgs.append("Hambre reducida" if efectos["hambre"] < 0 else "Hambre aumentada")
 
+        # ── Efectos de sed ────────────────────────────────────
         if "sed" in efectos:
             mult_sed = self.obtener_efecto_rasgo("multiplicador_consumo_sed", 1.0)
             delta = int(efectos["sed"] / mult_sed)
             self.sed = max(0, self.sed + delta)
             msgs.append("Sed reducida" if efectos["sed"] < 0 else "Sed aumentada")
 
+        # ── Efectos de fatiga ─────────────────────────────────
         if "fatiga" in efectos:
             self.fatiga = max(0, self.fatiga + efectos["fatiga"])
             msgs.append("Fatiga reducida" if efectos["fatiga"] < 0 else "Fatiga aumentada")
 
+        # ── Tratamiento de condiciones ────────────────────────
         if "condicion_remove" in efectos:
             self._reducir_condicion(efectos["condicion_remove"])
             msgs.append(f"Tratando {efectos['condicion_remove']}")
 
+        # ── XP de libros/manuales ─────────────────────────────
+        # El multiplicador de libros (memoria_fotografica) se aplica aquí.
+        # El progreso se acumula en _progreso_skills_pendiente y se muestra
+        # al final del tick en la sección PROGRESO.
         if "skill_xp" in efectos:
+            mult_libro = self.obtener_efecto_rasgo("xp_mult_libro", 1.0)
             for skill_key, xp in efectos["skill_xp"].items():
-                if skill_key in self.skills:
-                    self.skills[skill_key] = min(100, self.skills[skill_key] + xp)
-                    msgs.append(f"+{xp} {SKILLS[skill_key]['nombre']}")
+                xp_real = max(1, int(xp * mult_libro))
+                self.ganar_xp_skill(skill_key, xp_real)
+            self.libros_leidos += 1
+            msgs.append("Conocimiento adquirido")
 
-        # Tracking especial
+        # ── Tracking especial ─────────────────────────────────
         if nombre == "Morfina":
             self.usos_morfina += 1
 
-        # Consumir
+        # ── Consumir el item ──────────────────────────────────
         if "usos" in item:
             item["usos"] -= 1
             if item["usos"] <= 0:
@@ -354,8 +474,8 @@ class Sobreviviente:
         for item in self.inventario:
             extras = []
             if item.get("cantidad", 1) > 1: extras.append(f"x{item['cantidad']}")
-            if "usos" in item: extras.append(f"{item['usos']}u")
-            if "durabilidad" in item: extras.append(f"dur:{item['durabilidad']}%")
+            if "usos" in item:              extras.append(f"{item['usos']}u")
+            if "durabilidad" in item:       extras.append(f"dur:{item['durabilidad']}%")
             extras.append(f"{item.get('peso', 0)}kg")
             lineas.append(f"  {item['nombre']:<30} {' '.join(extras)}")
         return lineas
@@ -363,11 +483,16 @@ class Sobreviviente:
     # ─────────────────────────────────────────────────────────
     #  CONDICIONES
     # ─────────────────────────────────────────────────────────
-    def añadir_condicion(self, condicion: Condicion):
+
+    def añadir_condicion(self, condicion: Condicion) -> None:
         if not any(c.clave == condicion.clave for c in self.condiciones):
             self.condiciones.append(condicion)
+            # Contador para rasgo 'curtido' — condiciones de severidad grave
+            if condicion.severidad >= 3:
+                self.veces_condicion_grave += 1
+                self.evaluar_rasgos_nuevos()
 
-    def _reducir_condicion(self, clave: str):
+    def _reducir_condicion(self, clave: str) -> None:
         for c in self.condiciones:
             if c.clave == clave:
                 c.severidad -= 1
@@ -375,7 +500,7 @@ class Sobreviviente:
                     self.condiciones.remove(c)
                 return
 
-    def tick_condiciones(self):
+    def tick_condiciones(self) -> None:
         activas = []
         for c in self.condiciones:
             if c.tick():
@@ -387,24 +512,20 @@ class Sobreviviente:
     # ─────────────────────────────────────────────────────────
     #  MODIFICADORES Y CHECKS
     # ─────────────────────────────────────────────────────────
+
     def modificador_global(self) -> int:
-        """Penalizador/bonus global calculado dinámicamente."""
+        """Penalizador/bonus global calculado dinámicamente desde vitales y condiciones."""
         mod = 0
-        # Hambre
-        if self.hambre > VITALES["hambre"]["critico"]:    mod -= 1
-        if self.hambre > 90:                               mod -= 1
-        # Sed
-        if self.sed > VITALES["sed"]["critico"]:          mod -= 1
-        if self.sed > 85:                                  mod -= 2
-        # Fatiga
-        if self.fatiga > VITALES["fatiga"]["critico"]:    mod -= 1
-        # Moral
-        if self.moral < VITALES["moral"]["critico"]:      mod -= 1
-        # Radiación
+        if self.hambre > VITALES["hambre"]["critico"]:     mod -= 1
+        if self.hambre > 90:                                mod -= 1
+        if self.sed > VITALES["sed"]["critico"]:           mod -= 1
+        if self.sed > 85:                                   mod -= 2
+        if self.fatiga > VITALES["fatiga"]["critico"]:     mod -= 1
+        if self.moral < VITALES["moral"]["critico"]:       mod -= 1
         if self.radiacion > VITALES["radiacion"]["critico"]: mod -= 1
-        # Rasgo sangre fría: reduce penalizaciones
+        # Rasgo sangre_fria: reduce las penalizaciones por presión
         mult = self.obtener_efecto_rasgo("penalizacion_presion_mult", 1.0)
-        mod = int(mod * mult)
+        mod  = int(mod * mult)
         # Condiciones activas
         for c in self.condiciones:
             mod += c.efectos.get("stats_global", 0)
@@ -416,15 +537,30 @@ class Sobreviviente:
         tirada -= (self.stats.get("suerte", 5) - 5) // 3
         return tirada <= valor - (dificultad - 5)
 
-    def check_skill(self, skill: str, dificultad: int = 50) -> bool:
-        valor  = self.skills.get(skill, 20) + self.modificador_global() * 5
+    def check_skill(self, skill: str, dificultad: int = 50,
+                    contexto: str = "") -> bool:
+        """
+        Resuelve un check de skill.
+        contexto: 'interior', 'noche', etc. — activa modificadores contextuales
+                  (ej. claustrofobia penaliza sigilo en interiores).
+        """
+        valor = self.skills.get(skill, 20) + self.modificador_global() * 5
+
+        # Especialista: facilita checks cuando la skill supera 70
+        if self.tiene_rasgo("especialista") and valor > 70:
+            bonus = self.obtener_efecto_rasgo("bonus_check_experto", 0)
+            valor += bonus
+
+        # Modificadores contextuales (claustrofobia en interiores, etc.)
+        if contexto:
+            valor += self.modificador_skill_en_contexto(skill, contexto)
+
         tirada = random.randint(1, 100)
         return tirada <= valor - (dificultad - 50)
 
     def multiplicador_loot(self) -> float:
-        base        = (self.stats.get("percepcion", 3) + self.stats.get("suerte", 3)) / 20.0
-        skill_bonus = self.skills.get("saqueo", 20) / 200.0
-        # Rasgo ojos de águila ya está en saqueo; suerte pasiva
+        base         = (self.stats.get("percepcion", 3) + self.stats.get("suerte", 3)) / 20.0
+        skill_bonus  = self.skills.get("saqueo", 20) / 200.0
         suerte_pasivo = self.stats.get("suerte", 3) * STATS["suerte"].get(
             "efectos_pasivos", {}).get("loot_bonus", 0.05)
         return min(2.0, base + skill_bonus + suerte_pasivo + random.uniform(0, 0.2))
@@ -432,6 +568,7 @@ class Sobreviviente:
     # ─────────────────────────────────────────────────────────
     #  DAÑO Y CURACIÓN
     # ─────────────────────────────────────────────────────────
+
     def recibir_daño(self, cantidad: int) -> int:
         defensa   = self.defensa_total()
         daño_real = max(1, cantidad - defensa)
@@ -455,8 +592,8 @@ class Sobreviviente:
     # ─────────────────────────────────────────────────────────
     #  TIEMPO
     # ─────────────────────────────────────────────────────────
-    def pasar_tiempo(self, horas: float = 1.0):
-        # Multiplicadores de rasgos
+
+    def pasar_tiempo(self, horas: float = 1.0) -> None:
         mult_ham = self.obtener_efecto_rasgo("multiplicador_consumo_hambre", 1.0)
         mult_sed = self.obtener_efecto_rasgo("multiplicador_consumo_sed", 1.0)
 
@@ -468,11 +605,11 @@ class Sobreviviente:
         subida_sed = int(random.uniform(*s_def["subida_hora"]) * horas * mult_sed)
         subida_fat = int(random.uniform(*f_def["subida_hora"]) * horas)
 
-        self.hambre    = min(100, self.hambre + subida_ham)
-        self.sed       = min(100, self.sed    + subida_sed)
-        self.fatiga    = min(100, self.fatiga + subida_fat)
+        self.hambre = min(100, self.hambre + subida_ham)
+        self.sed    = min(100, self.sed    + subida_sed)
+        self.fatiga = min(100, self.fatiga + subida_fat)
 
-        # Daño por inanición / deshidratación
+        # Daño por inanición / deshidratación / radiación
         if self.hambre >= 95:
             self.salud = max(0, self.salud - int(h_def.get("daño_critico", 3) * horas))
         if self.sed >= 90:
@@ -480,103 +617,102 @@ class Sobreviviente:
         if self.radiacion >= VITALES["radiacion"]["critico"]:
             self.salud = max(0, self.salud - int(VITALES["radiacion"].get("daño_critico", 5) * horas))
 
-        # Curación natural lenta
+        # Curación natural lenta cuando bien nutrido
         if self.hambre < 30 and self.sed < 30 and self.salud < self.salud_max:
-            self.salud = min(self.salud_max, self.salud + int(1 * horas))
+            self.salud = min(self.salud_max, self.salud + 1)
 
-        # Moral decae si condiciones básicas mal
-        if self.hambre > 75 or self.sed > 75:
-            self.moral = max(0, self.moral - 3)
-
-        # Avanzar reloj
-        horas_int  = int(horas)
-        self.hora  = (self.hora + horas_int) % 24
-        if (self.hora) < horas_int:
+        self.hora = (self.hora + int(horas)) % 24
+        if self.hora < int(horas):
             self.dia += 1
 
-        # Tracking nocturno
-        if self.hora >= 20 or self.hora <= 5:
-            self.expediciones_nocturnas += 1
-
         self.tick_condiciones()
-        self.evaluar_rasgos_nuevos()
 
     # ─────────────────────────────────────────────────────────
     #  SERIALIZACIÓN
     # ─────────────────────────────────────────────────────────
+
     def a_dict(self) -> dict:
         return {
-            "nombre":    self.nombre,
-            "apellido":  self.apellido,
-            "genero":    self.genero,
-            "edad":      self.edad,
-            "bg_key":    self.bg_key,
-            "stats":     self.stats,
-            "skills":    self.skills,
-            "rasgos":    self.rasgos,
-            "salud":     self.salud,
-            "salud_max": self.salud_max,
-            "energia":   self.energia,
+            "nombre":     self.nombre,
+            "apellido":   self.apellido,
+            "genero":     self.genero,
+            "edad":       self.edad,
+            "bg_key":     self.bg_key,
+            "stats":      self.stats,
+            "skills":     self.skills,
+            "skills_xp":  self.skills_xp,
+            "rasgos":     self.rasgos,
+            "salud":      self.salud,
+            "salud_max":  self.salud_max,
+            "energia":    self.energia,
             "energia_max": self.energia_max,
-            "hambre":    self.hambre,
-            "sed":       self.sed,
-            "fatiga":    self.fatiga,
-            "moral":     self.moral,
-            "radiacion": self.radiacion,
+            "hambre":     self.hambre,
+            "sed":        self.sed,
+            "fatiga":     self.fatiga,
+            "moral":      self.moral,
+            "radiacion":  self.radiacion,
             "condiciones": [
-                {"clave": c.clave, "nombre": c.nombre, "severidad": c.severidad,
-                 "duracion": c.duracion, "efectos": c.efectos,
-                 "turnos_rest": c.turnos_rest}
+                {
+                    "clave":      c.clave,
+                    "nombre":     c.nombre,
+                    "severidad":  c.severidad,
+                    "duracion":   c.duracion,
+                    "efectos":    c.efectos,
+                    "turnos_rest": c.turnos_rest,
+                }
                 for c in self.condiciones
             ],
-            "inventario":    self.inventario,
-            "peso_max":      self.peso_max,
-            "dia":           self.dia,
-            "hora":          self.hora,
-            "expediciones_completadas":  self.expediciones_completadas,
-            "infectados_eliminados":     self.infectados_eliminados,
-            "bandidos_eliminados":       self.bandidos_eliminados,
-            "veces_en_peligro_critico":  self.veces_en_peligro_critico,
-            "items_recolectados":        self.items_recolectados,
-            "muertes_vistas":            self.muertes_vistas,
-            "expediciones_nocturnas":    self.expediciones_nocturnas,
-            "usos_morfina":              self.usos_morfina,
-            "areas_visitadas":           self.areas_visitadas,
-            "info_areas":                self.info_areas,
-            "rasgos_en_progreso":        self.rasgos_en_progreso,
+            "inventario":  self.inventario,
+            "peso_max":    self.peso_max,
+            "dia":         self.dia,
+            "hora":        self.hora,
+            "expediciones_completadas": self.expediciones_completadas,
+            "infectados_eliminados":    self.infectados_eliminados,
+            "bandidos_eliminados":      self.bandidos_eliminados,
+            "veces_en_peligro_critico": self.veces_en_peligro_critico,
+            "items_recolectados":       self.items_recolectados,
+            "muertes_vistas":           self.muertes_vistas,
+            "expediciones_nocturnas":   self.expediciones_nocturnas,
+            "usos_morfina":             self.usos_morfina,
+            "libros_leidos":            self.libros_leidos,
+            "veces_condicion_grave":    self.veces_condicion_grave,
+            "areas_visitadas":          self.areas_visitadas,
+            "info_areas":               self.info_areas,
+            "rasgos_en_progreso":       self.rasgos_en_progreso,
         }
 
     @classmethod
     def desde_dict(cls, data: dict) -> "Sobreviviente":
         p = cls.__new__(cls)
-        p.nombre    = data["nombre"]
-        p.apellido  = data["apellido"]
-        p.genero    = data["genero"]
-        p.edad      = data["edad"]
-        p.bg_key    = data.get("bg_key", list(BACKGROUNDS.keys())[0])
+        p.nombre     = data["nombre"]
+        p.apellido   = data["apellido"]
+        p.genero     = data["genero"]
+        p.edad       = data["edad"]
+        p.bg_key     = data.get("bg_key", list(BACKGROUNDS.keys())[0])
         p.background = BACKGROUNDS[p.bg_key]
-        p.stats     = data["stats"]
-        p.skills    = data["skills"]
-        p.rasgos    = data.get("rasgos", [])
-        p.salud     = data["salud"]
-        p.salud_max = data["salud_max"]
-        p.energia   = data["energia"]
+        p.stats      = data["stats"]
+        p.skills     = data["skills"]
+        p.skills_xp  = data.get("skills_xp", {k: 0 for k in p.skills})
+        p.rasgos     = data.get("rasgos", [])
+        p.salud      = data["salud"]
+        p.salud_max  = data["salud_max"]
+        p.energia    = data["energia"]
         p.energia_max = data["energia_max"]
-        p.hambre    = data["hambre"]
-        p.sed       = data["sed"]
-        p.fatiga    = data["fatiga"]
-        p.moral     = data["moral"]
-        p.radiacion = data["radiacion"]
+        p.hambre     = data["hambre"]
+        p.sed        = data["sed"]
+        p.fatiga     = data["fatiga"]
+        p.moral      = data["moral"]
+        p.radiacion  = data["radiacion"]
         p.condiciones = []
         for cd in data.get("condiciones", []):
             c = Condicion(cd["clave"], cd["nombre"], cd["severidad"],
                           cd["duracion"], cd["efectos"])
             c.turnos_rest = cd["turnos_rest"]
             p.condiciones.append(c)
-        p.inventario  = data.get("inventario", [])
-        p.peso_max    = data.get("peso_max", 20)
-        p.dia         = data.get("dia", 1)
-        p.hora        = data.get("hora", 8)
+        p.inventario   = data.get("inventario", [])
+        p.peso_max     = data.get("peso_max", 20)
+        p.dia          = data.get("dia", 1)
+        p.hora         = data.get("hora", 8)
         p.expediciones_completadas = data.get("expediciones_completadas", 0)
         p.infectados_eliminados    = data.get("infectados_eliminados", 0)
         p.bandidos_eliminados      = data.get("bandidos_eliminados", 0)
@@ -585,21 +721,26 @@ class Sobreviviente:
         p.muertes_vistas           = data.get("muertes_vistas", 0)
         p.expediciones_nocturnas   = data.get("expediciones_nocturnas", 0)
         p.usos_morfina             = data.get("usos_morfina", 0)
+        p.libros_leidos            = data.get("libros_leidos", 0)
+        p.veces_condicion_grave    = data.get("veces_condicion_grave", 0)
         p.areas_visitadas          = data.get("areas_visitadas", [])
         p.info_areas               = data.get("info_areas", {})
         p.rasgos_en_progreso       = data.get("rasgos_en_progreso", {})
+        # Buffer transiente — no se persiste, siempre vacío al cargar
+        p._progreso_skills_pendiente = []
         return p
 
     # ─────────────────────────────────────────────────────────
     #  REPRESENTACIÓN
     # ─────────────────────────────────────────────────────────
+
     def barra(self, valor: int, maximo: int, ancho: int = 12) -> str:
         llenos = int((valor / max(1, maximo)) * ancho)
         return f"[{'█'*llenos}{'░'*(ancho-llenos)}]"
 
     def __str__(self) -> str:
-        sexo = "♂" if self.genero == "Masculino" else "♀"
-        bg   = self.background["nombre"]
+        sexo   = "♂" if self.genero == "Masculino" else "♀"
+        bg     = self.background["nombre"]
         lineas = [
             f"┌─ {self.nombre} {self.apellido} {sexo}  {self.edad}a  {bg}",
             f"│ Salud    {self.barra(self.salud, self.salud_max)} "

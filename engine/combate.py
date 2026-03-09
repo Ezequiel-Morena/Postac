@@ -5,6 +5,7 @@
 import random
 from data.enemigos import ENEMIGOS
 from data.items    import ITEMS
+from data.skills   import SKILLS
 from engine.personaje import Condicion
 
 
@@ -30,6 +31,12 @@ def resolver_combate(personaje, enemigo_key: str,
     """
     Simula un combate completo por turnos.
     iniciativa: 'jugador' | 'enemigo' | 'tirar'
+
+    XP:
+      - Cada golpe exitoso otorga xp_por_uso de la skill usada.
+      - Al neutralizar al enemigo se suma la xp del campo 'xp' del enemigo.
+      - Todo el XP se acumula vía ganar_xp_skill() y se muestra al final
+        del tick en la sección PROGRESO (no inline en el combate).
     """
     r   = ResultadoCombate()
     ene = dict(ENEMIGOS[enemigo_key])
@@ -54,11 +61,11 @@ def resolver_combate(personaje, enemigo_key: str,
     # ── ARMA DEL JUGADOR ──────────────────────────────────────
     arma = personaje.arma_equipada()
     if arma:
-        daño_base    = arma.get("daño", (3, 7))
+        daño_base     = arma.get("daño", (3, 7))
         skill_combate = ("combate_distancia" if arma.get("tipo") == "arma_fuego"
                           else "combate_cac")
     else:
-        daño_base    = (2, 5)
+        daño_base     = (2, 5)
         skill_combate = "combate_cac"
         r.añadir("  (Sin arma equipada. Combate a manos limpias.)")
 
@@ -69,6 +76,8 @@ def resolver_combate(personaje, enemigo_key: str,
                       if personaje.stats["destreza"] + random.randint(1, 6)
                          > vel_ene + random.randint(1, 6)
                       else "enemigo")
+
+    xp_por_golpe = SKILLS.get(skill_combate, {}).get("xp_por_uso", 2)
 
     turno      = 0
     max_turnos = 12
@@ -81,7 +90,10 @@ def resolver_combate(personaje, enemigo_key: str,
         if iniciativa == "jugador" or turno > 1:
             dif_golpe = 40 + ene.get("velocidad", 2) * 5
             if personaje.check_skill(skill_combate, dif_golpe - bonus_ataque):
-                dmg = random.randint(*daño_base)
+                # XP por golpe exitoso — se acumula para mostrar al final
+                personaje.ganar_xp_skill(skill_combate, xp_por_golpe)
+
+                dmg  = random.randint(*daño_base)
                 # Rasgo golpe_brutal
                 mult = personaje.obtener_efecto_rasgo("daño_cac_mult", 1.0)
                 if skill_combate == "combate_cac":
@@ -109,7 +121,6 @@ def resolver_combate(personaje, enemigo_key: str,
         if not personaje.check_stat("destreza", dif_esquive):
             dmg_ene = random.randint(*ene["daño"])
 
-            # Habilidades especiales del enemigo
             habs = ene.get("habilidades", [])
             if "emboscada" in habs and turno == 1 and iniciativa == "enemigo":
                 dmg_ene = int(dmg_ene * 1.5)
@@ -123,7 +134,7 @@ def resolver_combate(personaje, enemigo_key: str,
             real = personaje.recibir_daño(dmg_ene)
             r.daño_recibido += real
 
-            # Condición por mordida
+            # Condición por mordida infectada
             if "mordida_infectada" in habs and random.random() < 0.30:
                 c = Condicion("infeccion_leve", "Infección leve", 1, 5,
                               {"daño_por_turno": 2})
@@ -149,11 +160,8 @@ def resolver_combate(personaje, enemigo_key: str,
         for loot_key in ene.get("loot", []):
             if loot_key and loot_key in ITEMS and random.random() < 0.60:
                 r.loot_enemigo.append(dict(ITEMS[loot_key]))
-        # XP en skill
-        xp = ene.get("xp", 10)
-        mejora = max(1, xp // 15)
-        personaje.skills[skill_combate] = min(
-            100, personaje.skills[skill_combate] + mejora)
+        # XP de victoria — bonus por neutralizar al enemigo completo
+        personaje.ganar_xp_skill(skill_combate, ene.get("xp", 10))
         # Contadores
         if "infectado" in enemigo_key:
             personaje.infectados_eliminados += 1

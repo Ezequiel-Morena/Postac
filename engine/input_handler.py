@@ -1,13 +1,20 @@
 # ============================================================
 # engine/input_handler.py — Manejo de input de teclado
 #
-# Provee lectura de teclas sin Enter (flechas ↑↓, Enter, ESC)
-# sobre stdlib pura: termios en Unix, msvcrt en Windows.
+# API pública principal:
+#   leer_entrada(prompt, opciones_nav) — reemplaza input() en todo
+#       el proyecto. Si el usuario pulsa ↑/↓ y hay opciones_nav,
+#       activa el selector navegable. Si pulsa texto, lo acumula
+#       normalmente. Así cualquier pantalla hereda navegación
+#       sin código extra.
 #
-# Compatibilidad con modo bot: si stdin no es una terminal real,
-# menu_navegable() retorna -1 de inmediato y el flujo cae de vuelta
-# al input() clásico de texto. Los comandos de texto siguen
-# funcionando exactamente igual que antes.
+#   menu_navegable(...)  — menú standalone con limpieza de pantalla.
+#   lista_navegable(...) — lista con submenú de acciones (inventario).
+#   confirmar(...)       — confirmación s/N.
+#   es_interactivo()     — True si hay terminal real.
+#
+# Compatibilidad modo bot: sin terminal, leer_entrada() equivale
+# a input() estándar. Los comandos de texto nunca se rompen.
 # ============================================================
 
 import os
@@ -16,25 +23,6 @@ import select
 
 _WINDOWS = os.name == "nt"
 
-# Secuencias ANSI Unix → nombre semántico
-_UNIX_ESCAPES: dict[str, str] = {
-    "[A":  "up",
-    "[B":  "down",
-    "[C":  "right",
-    "[D":  "left",
-    "[5~": "pgup",
-    "[6~": "pgdn",
-}
-
-# Scancodes Windows (segundo byte tras 0x00 o 0xe0)
-_WIN_SCANCODES: dict[str, str] = {
-    "H": "up",
-    "P": "down",
-    "K": "left",
-    "M": "right",
-}
-
-# Colores ANSI internos — no importar desde bitacora para evitar ciclos
 _R   = "\033[0m"
 _VE  = "\033[92m"
 _AM  = "\033[93m"
@@ -45,20 +33,18 @@ _DIM = "\033[2m"
 
 
 def es_interactivo() -> bool:
-    """True si hay una terminal real (no pipe, redirect ni modo bot)."""
+    """True si hay terminal real (no pipe, redirect ni modo bot)."""
     return sys.stdin.isatty() and sys.stdout.isatty()
 
 
+# ──────────────────────────────────────────────────────────────
+#  LECTURA CRUDA DE TECLA
+# ──────────────────────────────────────────────────────────────
+
 def getch() -> str:
     """
-    Lee una sola tecla sin esperar Enter.
-    Retorna:
-      'up' | 'down' | 'left' | 'right'  — flechas
-      'enter'                            — Enter / Return
-      'esc'                              — Escape
-      'backspace'                        — Backspace
-      cualquier carácter imprimible      — tal cual
-      ''                                 — si no hay terminal interactiva
+    Lee una tecla sin esperar Enter.
+    Retorna: 'up'|'down'|'left'|'right'|'enter'|'esc'|'backspace'|char|''
     """
     if not es_interactivo():
         return ""
@@ -69,54 +55,53 @@ def _getch_windows() -> str:
     import msvcrt
     ch = msvcrt.getwch()
     if ch in ("\x00", "\xe0"):
-        return _WIN_SCANCODES.get(msvcrt.getwch(), "")
-    if ch == "\r":           return "enter"
-    if ch == "\x1b":         return "esc"
-    if ch == "\x03":         raise KeyboardInterrupt
-    if ch in ("\x08","\x7f"): return "backspace"
+        return {"H": "up", "P": "down", "K": "left", "M": "right"}.get(msvcrt.getwch(), "")
+    if ch == "\r":              return "enter"
+    if ch == "\x1b":            return "esc"
+    if ch == "\x03":            raise KeyboardInterrupt
+    if ch in ("\x08", "\x7f"): return "backspace"
     return ch
 
 
 def _getch_unix() -> str:
     try:
-        import tty
-        import termios
+        import tty, termios
     except ImportError:
         return ""
-
     fd = sys.stdin.fileno()
     try:
         old = termios.tcgetattr(fd)
     except termios.error:
         return ""
-
     try:
         tty.setraw(fd)
-        ch = sys.stdin.read(1)
-        if ch == "\x1b":
-            # Leer secuencia de escape con timeout 60 ms
-            try:
-                if select.select([sys.stdin], [], [], 0.06)[0]:
-                    seq = ""
-                    for _ in range(6):
-                        c = sys.stdin.read(1)
-                        seq += c
-                        if c.isalpha() or c == "~":
-                            break
-                    return _UNIX_ESCAPES.get(seq, "esc")
-            except Exception:
-                pass
+        sys.stdout.flush()
+        ch = os.read(fd, 1)
+        if not ch:
+            return ""
+        if ch == b"\x1b":
+            ready, _, _ = select.select([sys.stdin], [], [], 0.10)
+            if ready:
+                rest = os.read(fd, 8)
+                if len(rest) >= 2 and rest[0:1] == b"[":
+                    c = rest[1:2]
+                    if c == b"A": return "up"
+                    if c == b"B": return "down"
+                    if c == b"C": return "right"
+                    if c == b"D": return "left"
             return "esc"
-        if ch in ("\r", "\n"): return "enter"
-        if ch == "\x03":       raise KeyboardInterrupt
-        if ch in ("\x7f", "\x08"): return "backspace"
-        return ch
+        if ch in (b"\r", b"\n"):      return "enter"
+        if ch == b"\x03":             raise KeyboardInterrupt
+        if ch in (b"\x7f", b"\x08"): return "backspace"
+        try:
+            return ch.decode("utf-8")
+        except UnicodeDecodeError:
+            return ""
     except KeyboardInterrupt:
         raise
     except Exception:
         return ""
     finally:
-        # Restaurar siempre, incluso si hubo error
         try:
             termios.tcsetattr(fd, termios.TCSADRAIN, old)
         except Exception:
@@ -124,7 +109,90 @@ def _getch_unix() -> str:
 
 
 # ──────────────────────────────────────────────────────────────
-#  MENÚ NAVEGABLE
+#  ENTRADA HÍBRIDA — reemplaza input() en todo el proyecto
+# ──────────────────────────────────────────────────────────────
+
+def leer_entrada(prompt: str = "> ",
+                 opciones_nav: list[str] | None = None) -> str:
+    """
+    Reemplaza input() con soporte transparente de navegación.
+
+    Comportamiento:
+      ↑ / ↓      — si hay opciones_nav, abre el selector y retorna
+                   el índice 1-based como string ("1", "2"...).
+                   Si no hay opciones, mueve el cursor del historial
+                   (no implementado: retorna "").
+      Letra/núm  — la echa en pantalla y completa la línea normalmente.
+      Enter      — retorna "".
+      Esc        — retorna "".
+      Sin tty    — equivale exactamente a input(prompt).
+    """
+    if not es_interactivo():
+        return input(prompt)
+
+    sys.stdout.write(prompt)
+    sys.stdout.flush()
+
+    k = getch()
+
+    # ── Flechas → modo navegación ──────────────────────────────
+    if k in ("up", "down") and opciones_nav:
+        # Borrar el prompt ya impreso
+        sys.stdout.write("\r" + " " * (len(prompt) + 2) + "\r")
+        sys.stdout.flush()
+        sel_inicial = len(opciones_nav) - 1 if k == "up" else 0
+        idx = menu_navegable(
+            "Seleccionar opción",
+            opciones_nav,
+            seleccion_inicial=sel_inicial,
+            limpiar=True,
+        )
+        if idx >= 0:
+            return str(idx + 1)
+        return ""
+
+    # ── Enter / Esc vacíos ─────────────────────────────────────
+    if k in ("enter", "esc", ""):
+        print()
+        return ""
+
+    # ── Tecla de texto → acumular hasta Enter ─────────────────
+    if len(k) == 1 and (k.isprintable() or k.isdigit()):
+        sys.stdout.write(k)
+        sys.stdout.flush()
+        return _completar_linea(k)
+
+    print()
+    return ""
+
+
+def _completar_linea(inicial: str = "") -> str:
+    """
+    Lee caracteres hasta Enter, con soporte de backspace.
+    Echa cada carácter en pantalla (comportamiento de readline básico).
+    """
+    buf = list(inicial)
+    while True:
+        k = getch()
+        if k == "enter":
+            print()
+            return "".join(buf).strip()
+        elif k in ("esc",):
+            print()
+            return ""
+        elif k == "backspace":
+            if buf:
+                buf.pop()
+                sys.stdout.write("\b \b")
+                sys.stdout.flush()
+        elif len(k) == 1 and (k.isprintable() or k == " "):
+            buf.append(k)
+            sys.stdout.write(k)
+            sys.stdout.flush()
+
+
+# ──────────────────────────────────────────────────────────────
+#  MENÚ NAVEGABLE STANDALONE
 # ──────────────────────────────────────────────────────────────
 
 def menu_navegable(titulo: str,
@@ -133,15 +201,27 @@ def menu_navegable(titulo: str,
                    seleccion_inicial: int = 0,
                    limpiar: bool = True) -> int:
     """
-    Menú interactivo con ↑↓ + números directos + Enter.
-    Retorna índice 0-based, o -1 si ESC o sin terminal.
+    Menú con ↑↓ + números directos + Enter.
+    limpiar=True  → limpia pantalla (menús standalone).
+    limpiar=False → sobreescribe in-place sin tocar el contenido superior.
+    Retorna índice 0-based o -1 si ESC / sin terminal.
     """
     if not es_interactivo() or not opciones:
         return -1
 
-    sel = max(0, min(seleccion_inicial, len(opciones) - 1))
+    sel           = max(0, min(seleccion_inicial, len(opciones) - 1))
+    n_lineas_menu = _altura_menu(titulo, subtitulo, opciones)
+    primer_render = True
+
     while True:
-        _render_menu(titulo, opciones, subtitulo, sel, limpiar)
+        if limpiar:
+            sys.stdout.write("\033[H\033[J")
+        elif not primer_render:
+            sys.stdout.write(f"\033[{n_lineas_menu}A\033[J")
+        primer_render = False
+
+        _dibujar_menu(titulo, opciones, subtitulo, sel)
+
         k = getch()
         if   k == "up":    sel = (sel - 1) % len(opciones)
         elif k == "down":  sel = (sel + 1) % len(opciones)
@@ -153,19 +233,29 @@ def menu_navegable(titulo: str,
                 return n
 
 
-def _render_menu(titulo, opciones, subtitulo, sel, limpiar) -> None:
-    if limpiar:
-        sys.stdout.write("\033[H\033[J")
-        sys.stdout.flush()
-    ancho = max(40, len(titulo) + 6)
-    print(f"\n{_AM}{_NE}  {titulo}{_R}")
+def _altura_menu(titulo: str, subtitulo: str, opciones: list[str]) -> int:
+    n = 2
+    if subtitulo: n += 1
+    n += 1
+    n += len(opciones)
+    n += 2
+    return n
+
+
+def _dibujar_menu(titulo, opciones, subtitulo, sel) -> None:
+    ancho = max(42, len(titulo) + 6)
+    lines = [f"\n{_AM}{_NE}  {titulo}{_R}"]
     if subtitulo:
-        print(f"  {_DIM}{subtitulo}{_R}")
-    print(f"  {_GR}{'═' * ancho}{_R}")
+        lines.append(f"  {_DIM}{subtitulo}{_R}")
+    lines.append(f"  {_GR}{chr(9552) * ancho}{_R}")
     for i, op in enumerate(opciones):
-        cursor = f"{_VE}{_NE}▶" if i == sel else f"{_CI} "
-        print(f"  {cursor}  {i+1:2d}. {op}{_R}")
-    print(f"\n  {_DIM}[↑↓] navegar  [Enter/Núm] confirmar  [Esc] cancelar{_R}", flush=True)
+        if i == sel:
+            lines.append(f"  {_VE}{_NE}\u25b6  {i+1:2d}. {op}{_R}")
+        else:
+            lines.append(f"  {_CI}    {i+1:2d}. {op}{_R}")
+    lines.append(f"\n  {_DIM}[\u2191\u2193] navegar  [Enter/N\u00fam] confirmar  [Esc] cancelar{_R}")
+    sys.stdout.write("\n".join(lines) + "\n")
+    sys.stdout.flush()
 
 
 # ──────────────────────────────────────────────────────────────
@@ -177,9 +267,8 @@ def lista_navegable(titulo: str,
                     acciones: list[str],
                     header: str = "") -> tuple[int, str]:
     """
-    Lista navegable con ↑↓. Al presionar Enter sobre un ítem
-    muestra un submenú de acciones.
-    Retorna (índice_0based, nombre_accion_lowercase) o (-1, '').
+    Lista navegable con ↑↓ + Enter para submenú de acciones.
+    Retorna (índice_0based, accion_lowercase) o (-1, \'\').
     """
     if not es_interactivo() or not items:
         return -1, ""
@@ -192,11 +281,10 @@ def lista_navegable(titulo: str,
         elif k == "down": sel = (sel + 1) % len(items)
         elif k == "esc":  return -1, ""
         elif k == "enter":
-            nombre_item = items[sel].strip().split("  ")[0]
-            accion_idx  = menu_navegable(
-                f"¿Qué hacer con el ítem #{sel + 1}?",
+            accion_idx = menu_navegable(
+                f"Acción sobre ítem #{sel + 1}",
                 acciones,
-                limpiar=True
+                limpiar=True,
             )
             if accion_idx >= 0:
                 return sel, acciones[accion_idx].split()[0].lower()
@@ -208,22 +296,24 @@ def lista_navegable(titulo: str,
 
 def _render_lista(titulo, items, sel, header, acciones) -> None:
     sys.stdout.write("\033[H\033[J")
-    sys.stdout.flush()
-    print(f"\n{_AM}{_NE}  {titulo}{_R}")
+    lines = [f"\n{_AM}{_NE}  {titulo}{_R}"]
     if header:
-        print(f"  {_GR}{header}{_R}")
-    print(f"  {_GR}{'─' * 64}{_R}")
-    # Ventana deslizante de 14 ítems
+        lines.append(f"  {_GR}{header}{_R}")
+    lines.append(f"  {_GR}{'\u2500' * 64}{_R}")
     inicio = max(0, min(sel - 6, len(items) - 14))
     fin    = min(len(items), inicio + 14)
     for i in range(inicio, fin):
-        cursor = f"{_VE}{_NE}▶" if i == sel else f"{_CI} "
-        print(f"  {cursor}{items[i]}{_R}")
+        if i == sel:
+            lines.append(f"  {_VE}{_NE}\u25b6{items[i]}{_R}")
+        else:
+            lines.append(f"  {_CI} {items[i]}{_R}")
     if len(items) > 14:
-        print(f"  {_DIM}  ({len(items)} ítems en total){_R}")
-    print(f"  {_GR}{'─' * 64}{_R}")
+        lines.append(f"  {_DIM}  ({len(items)} ítems en total){_R}")
+    lines.append(f"  {_GR}{'\u2500' * 64}{_R}")
     acts = "  ".join(f"[{a.split()[0]}]" for a in acciones)
-    print(f"  {_DIM}[↑↓] navegar · [Enter] acción · {acts} · [Esc] volver{_R}")
+    lines.append(f"  {_DIM}[\u2191\u2193] navegar · [Enter] acción · {acts} · [Esc] volver{_R}")
+    sys.stdout.write("\n".join(lines) + "\n")
+    sys.stdout.flush()
 
 
 # ──────────────────────────────────────────────────────────────
@@ -231,7 +321,7 @@ def _render_lista(titulo, items, sel, header, acciones) -> None:
 # ──────────────────────────────────────────────────────────────
 
 def confirmar(mensaje: str, default_no: bool = True) -> bool:
-    """Pide s/N. Si no hay terminal retorna False."""
+    """Pide s/N. Sin terminal retorna False."""
     if not es_interactivo():
         return False
     opcion = "[s/N]" if default_no else "[S/n]"

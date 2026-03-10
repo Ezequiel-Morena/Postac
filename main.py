@@ -167,7 +167,8 @@ def pantalla_inventario(personaje):
             print(f"  {DIM}[↑↓ + Enter]  navegar visualmente{R}")
         print(f"  {GR}q / Enter   volver al juego{R}")
 
-        cmd = input(f"\n  {AM}> {R}").strip().lower()
+        from engine.input_handler import leer_entrada as _le
+        cmd = _le(f"\n  {AM}> {R}").strip().lower()
 
         if cmd in ("q", ""):
             # Si hay terminal y hay ítems, ofrecer navegación ↑↓
@@ -344,7 +345,8 @@ def pantalla_historias():
         print(f"  {GR}reset    borrar TODO — bitácoras + ranking completo{R}")
         print(f"  {GR}q / Enter   volver{R}")
 
-        cmd = input(f"\n  {AM}> {R}").strip().lower()
+        from engine.input_handler import leer_entrada as _le
+        cmd = _le(f"\n  {AM}> {R}").strip().lower()
 
         if cmd in ("q", ""):
             return
@@ -411,7 +413,7 @@ def pantalla_historias():
 
 def menu_inicio():
     from engine.save_manager  import hay_guardado, info_guardado, borrar_guardado, cargar, mostrar_leaderboard
-    from engine.input_handler import menu_navegable, es_interactivo
+    from engine.input_handler import menu_navegable, leer_entrada, es_interactivo
 
     cls()
     print(LOGO)
@@ -492,7 +494,7 @@ def menu_inicio():
 
 def pantalla_creacion():
     from engine.personaje    import Sobreviviente
-    from engine.input_handler import menu_navegable, es_interactivo
+    from engine.input_handler import menu_navegable, leer_entrada, es_interactivo
     from data.rasgos          import RASGOS
     from data.stats           import STATS
     from data.skills          import SKILLS
@@ -638,7 +640,7 @@ def bucle_principal(personaje, opciones_pendientes=None):
     from engine.save_manager  import guardar
     from engine.mundo         import generar_opciones
     from engine.tick          import ejecutar_expedicion, ejecutar_descanso
-    from engine.input_handler import menu_navegable, es_interactivo
+    from engine.input_handler import menu_navegable, leer_entrada, es_interactivo
 
     if not opciones_pendientes:
         opciones_pendientes = generar_opciones(personaje, 4)
@@ -657,9 +659,14 @@ def bucle_principal(personaje, opciones_pendientes=None):
         print(f"\n  {AM}[i] Inventario  [f] Ficha  [r] Ranking  "
               f"[h] Historias  [g] Guardar  [q] Salir{R}")
         if es_interactivo():
-            print(f"  {DIM}↑↓ + Enter: navegar expediciones sin escribir{R}")
+            print(f"  {DIM}[↑↓] navegar expediciones  [Enter] confirmar  [letra] comando{R}")
 
-        cmd = input(f"\n  {AM}> {R}").strip().lower()
+        _opciones_nav = (
+            [f"{a['nombre']}  peligro {a['peligro']}/5  ~{a['duracion_h']}h"
+             for a in opciones_pendientes]
+            + ["Descansar en el refugio"]
+        )
+        cmd = leer_entrada(f"\n  {AM}> {R}", opciones_nav=_opciones_nav).strip().lower()
 
         # ── Comandos de interfaz ───────────────────────────────
         if cmd == "q":
@@ -690,10 +697,13 @@ def bucle_principal(personaje, opciones_pendientes=None):
         elif cmd == "0":
             _ejecutar_descanso_interactivo(personaje, opciones_pendientes)
 
+        elif cmd == str(len(opciones_pendientes) + 1):
+            # leer_entrada retornó el índice del ítem "Descansar" en opciones_nav
+            _ejecutar_descanso_interactivo(personaje, opciones_pendientes)
+
         elif cmd == "":
-            # Enter vacío → menú ↑↓ de expedición si hay terminal
-            if es_interactivo():
-                _menu_navegable_expedicion(personaje, opciones_pendientes)
+            pass   # Enter sin selección: redibujar pantalla
+
         else:
             _procesar_eleccion_expedicion(cmd, personaje, opciones_pendientes)
 
@@ -715,25 +725,6 @@ def _ejecutar_descanso_interactivo(personaje, opciones):
             print(f"  {RO}  {msg}{R}")
     guardar(personaje, opciones)
     pausa()
-
-
-def _menu_navegable_expedicion(personaje, opciones):
-    """Menú ↑↓ para elegir expedición sin escribir nada."""
-    from engine.input_handler import menu_navegable
-    from engine.save_manager  import guardar
-    from engine.tick          import ejecutar_descanso
-
-    nombres = [f"{a['nombre']}  peligro {a['peligro']}/5  ~{a['duracion_h']}h"
-               for a in opciones]
-    nombres.append("Descansar en el refugio")
-
-    idx = menu_navegable("¿A dónde vas?", nombres)
-    if idx == -1:
-        return
-    if idx == len(opciones):
-        _ejecutar_descanso_interactivo(personaje, opciones)
-        return
-    _lanzar_expedicion(str(idx + 1), personaje, opciones)
 
 
 def _procesar_eleccion_expedicion(cmd: str, personaje, opciones: list):

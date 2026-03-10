@@ -1,13 +1,9 @@
 # ============================================================
 # engine/tick.py — Motor de tick global
 #
-# Cada decisión del jugador (expedición o descanso) dispara un
-# tick global. Este módulo centraliza toda la lógica de simulación
-# y devuelve un ResultadoTick que main.py solo presenta.
-#
-# Puntos de extensión para sistemas futuros (sin tocar main.py):
-#   resultado.eventos_refugio = tick_refugio(personaje, mundo)
-#   resultado.evento_clima    = tick_clima(mundo)
+# Cada decisión del jugador dispara un tick global que actualiza
+# todos los sistemas y devuelve un ResultadoTick listo para
+# ser presentado por main.py.
 # ============================================================
 
 import random
@@ -20,9 +16,9 @@ from data.skills import SKILLS
 
 @dataclass
 class ResultadoTick:
-    tipo:                 str       = ""        # "expedicion" | "descanso"
-    log_terminal:         str       = ""        # texto con colores ANSI
-    log_plano:            str       = ""        # texto sin colores (para PNG)
+    tipo:                 str       = ""
+    log_terminal:         str       = ""
+    log_plano:            str       = ""
     ruta_imagen:          str       = ""
     exito:                bool      = True
     personaje_vivo:       bool      = True
@@ -38,23 +34,14 @@ class ResultadoTick:
 
 def ejecutar_expedicion(personaje, area: dict,
                          exportar_img: bool = True) -> ResultadoTick:
-    """
-    Resuelve una expedición completa.
-    1. tick_dependencias — penalizaciones por adicciones al inicio
-    2. Secuencia de eventos del área
-    3. Loot del área, avance de tiempo, condiciones
-    4. Recoger progreso de skills acumulado durante el tick
-    5. Render y exportación
-    """
-    from engine.bitacora import (Bitacora, render_terminal, render_texto_plano,
-                                  exportar_imagen, exportar_perfil)
-    from engine.mundo    import generar_loot_area
-    from engine.eventos  import resolver_evento, generar_secuencia_eventos
-    from engine.combate  import resolver_combate
+    from engine.bitacora  import (Bitacora, render_terminal, render_texto_plano,
+                                   exportar_imagen, exportar_perfil)
+    from engine.mundo     import generar_loot_area
+    from engine.eventos   import resolver_evento, generar_secuencia_eventos
+    from engine.combate   import resolver_combate
+    from engine.save_manager import siguiente_ruta_bitacora, siguiente_ruta_texto
 
     resultado = ResultadoTick(tipo="expedicion")
-
-    # ── 1. Penalizaciones de dependencias ─────────────────────
     resultado.penalizaciones_tick = personaje.tick_dependencias()
 
     bit        = Bitacora(personaje)
@@ -65,31 +52,25 @@ def ejecutar_expedicion(personaje, area: dict,
         f"Salida → {area['nombre']} (peligro {area['peligro']}/5). "
         f"ETA ~{area['duracion_h']}h."
     )
-
-    # Advertir penalizaciones activas
     for msg in resultado.penalizaciones_tick:
         bit.entrada(msg, "critico")
 
-    # Advertencias pre-expedición
     if personaje.hambre > 70: bit.estado_critico("hambre")
     if personaje.sed    > 70: bit.estado_critico("sed")
     if personaje.salud < personaje.salud_max * 0.4: bit.estado_critico("salud_baja")
 
-    # ── 2. Secuencia de eventos ───────────────────────────────
+    # ── Secuencia de eventos ──────────────────────────────────
     secuencia = generar_secuencia_eventos(area, personaje)
-
     for ev_data in secuencia:
         if not personaje.esta_vivo() or not exito:
             break
-
         tipo_ev = ev_data[0]
         zona    = ev_data[2]
         bit.entrada(f"Explorando: {zona.replace('_', ' ').title()}")
 
         if tipo_ev == "combate":
-            enemigo_key = ev_data[1]
-            iniciativa  = ev_data[3] if len(ev_data) > 3 else "tirar"
-            r_c = resolver_combate(personaje, enemigo_key, iniciativa)
+            iniciativa = ev_data[3] if len(ev_data) > 3 else "tirar"
+            r_c = resolver_combate(personaje, ev_data[1], iniciativa)
             bit.log_combate(r_c)
             for item in r_c.loot_enemigo:
                 if personaje.añadir_item(item):
@@ -109,7 +90,6 @@ def ejecutar_expedicion(personaje, area: dict,
                     "conocido": True, "detalle": "Zona explorada previamente"
                 }
 
-        # Avanzar tiempo proporcional a las zonas
         horas_zona = area["duracion_h"] / max(1, len(secuencia))
         personaje.pasar_tiempo(horas_zona)
         _auto_consumir(personaje, bit)
@@ -118,7 +98,7 @@ def ejecutar_expedicion(personaje, area: dict,
             bit.entrada("¡Salud crítica! Aborto la expedición.", "critico")
             exito = False
 
-    # ── 3. Loot general del área ──────────────────────────────
+    # ── Loot general ─────────────────────────────────────────
     if exito:
         loot_base = generar_loot_area(area, personaje)
         bit.log_loot(loot_base)
@@ -134,17 +114,13 @@ def ejecutar_expedicion(personaje, area: dict,
     if exito:
         personaje.expediciones_completadas += 1
         personaje.moral = min(100, personaje.moral + 5)
-
-    # Contar expedición nocturna (horas fuera del rango diurno)
     if not (6 <= personaje.hora <= 20):
         personaje.expediciones_nocturnas += 1
 
     personaje.evaluar_rasgos_nuevos()
-
-    # ── 4. Recoger progreso de skills del tick ────────────────
     resultado.progreso_skills = personaje.recoger_progreso_skills()
 
-    # ── 5. Render y exportación ───────────────────────────────
+    # ── Render ───────────────────────────────────────────────
     resultado.log_terminal = render_terminal(bit, personaje, loot_total,
                                               resultado.progreso_skills)
     resultado.log_plano    = render_texto_plano(bit, personaje, loot_total,
@@ -152,18 +128,21 @@ def ejecutar_expedicion(personaje, area: dict,
                                                  resultado.progreso_skills)
     resultado.exito        = exito
     resultado.personaje_vivo = personaje.esta_vivo()
-
     if not personaje.esta_vivo():
         resultado.causa_muerte = "heridas de expedición"
 
-    Path("saves").mkdir(exist_ok=True)
-    with open("saves/bitacora_ultima.txt", "w", encoding="utf-8") as f:
-        f.write(resultado.log_plano)
+    # ── Guardar texto en directorio de la partida ─────────────
+    ruta_txt = siguiente_ruta_texto(personaje.partida_id, personaje.dia)
+    ruta_txt.write_text(resultado.log_plano, encoding="utf-8")
 
-    resultado.ruta_imagen = _exportar_imagenes(
+    # Copia de conveniencia (última bitácora siempre accesible)
+    Path("saves").mkdir(exist_ok=True)
+    Path("saves/bitacora_ultima.txt").write_text(resultado.log_plano, encoding="utf-8")
+
+    # ── Imagen ───────────────────────────────────────────────
+    resultado.ruta_imagen = _exportar_imagen_partida(
         resultado.log_plano, personaje, exportar_img
     )
-
     return resultado
 
 
@@ -172,46 +151,26 @@ def ejecutar_expedicion(personaje, area: dict,
 # ──────────────────────────────────────────────────────────────
 
 def ejecutar_descanso(personaje) -> ResultadoTick:
-    """
-    Resuelve un turno de descanso en el refugio.
-    1. tick_dependencias — penalizaciones por adicciones
-    2. Consumo automático de recursos
-    3. Recuperación de fatiga y moral
-    4. Recoger progreso de skills (ej. si se leyó un libro antes)
-    """
     resultado = ResultadoTick(tipo="descanso")
-
-    # ── 1. Penalizaciones de dependencias ─────────────────────
     resultado.penalizaciones_tick = personaje.tick_dependencias()
-
     log = list(resultado.penalizaciones_tick)
+    log += _consumo_descanso(personaje)
 
-    # ── 2. Consumo de recursos disponibles ───────────────────
-    log += _resolver_descanso_consumo(personaje)
-
-    # ── 3. Recuperación ───────────────────────────────────────
     mult_rec = personaje.obtener_efecto_rasgo("recuperacion_descanso_mult", 1.0)
-    recuperacion_fatiga = int(40 * mult_rec)
-    personaje.fatiga = max(0, personaje.fatiga - recuperacion_fatiga)
+    rec_fat  = int(40 * mult_rec)
+    personaje.fatiga = max(0, personaje.fatiga - rec_fat)
     personaje.moral  = min(100, personaje.moral + 5)
     personaje.pasar_tiempo(6)
-    log.append(f"Descansaste 6 horas. Fatiga -{recuperacion_fatiga}.")
-
-    if personaje.hambre > 75:
-        log.append("⚠ Sin comida. El hambre es crítica.")
-    if personaje.sed > 75:
-        log.append("⚠ Sin agua. La deshidratación avanza.")
+    log.append(f"Descansaste 6 horas. Fatiga -{rec_fat}.")
+    if personaje.hambre > 75: log.append("⚠ Sin comida. El hambre es crítica.")
+    if personaje.sed    > 75: log.append("⚠ Sin agua. La deshidratación avanza.")
 
     personaje.evaluar_rasgos_nuevos()
-
-    # ── 4. Recoger progreso de skills del tick ────────────────
-    resultado.progreso_skills  = personaje.recoger_progreso_skills()
-    resultado.log_descanso     = log
-    resultado.personaje_vivo   = personaje.esta_vivo()
-
+    resultado.progreso_skills = personaje.recoger_progreso_skills()
+    resultado.log_descanso    = log
+    resultado.personaje_vivo  = personaje.esta_vivo()
     if not personaje.esta_vivo():
         resultado.causa_muerte = "inanición o deshidratación en refugio"
-
     return resultado
 
 
@@ -219,77 +178,56 @@ def ejecutar_descanso(personaje) -> ResultadoTick:
 #  UTILIDADES INTERNAS
 # ──────────────────────────────────────────────────────────────
 
-def _resolver_descanso_consumo(personaje) -> list[str]:
-    """Consume comida, agua y medicina disponibles durante el descanso."""
+def _consumo_descanso(personaje) -> list[str]:
     msgs = []
-
     if personaje.hambre > 40:
-        item = _buscar_item_por_tipo(personaje, "comida")
+        item = _item_por_tipo(personaje, "comida")
         if item:
             ok, msg = personaje.usar_item(item["nombre"])
-            if ok:
-                msgs.append(f"Comiste: {item['nombre']}. {msg}")
-
+            if ok: msgs.append(f"Comiste: {item['nombre']}. {msg}")
     if personaje.sed > 30:
-        item = _buscar_item_por_tipo(personaje, "agua")
+        item = _item_por_tipo(personaje, "agua")
         if item:
             ok, msg = personaje.usar_item(item["nombre"])
-            if ok:
-                msgs.append(f"Bebiste: {item['nombre']}.")
-
+            if ok: msgs.append(f"Bebiste: {item['nombre']}.")
     if personaje.salud < personaje.salud_max * 0.7:
-        item = _buscar_item_por_tipo(personaje, "medicina")
+        item = _item_por_tipo(personaje, "medicina")
         if item:
             ok, msg = personaje.usar_item(item["nombre"])
-            if ok:
-                msgs.append(f"Trataste heridas: {msg}")
-
+            if ok: msgs.append(f"Trataste heridas: {msg}")
     return msgs
 
 
 def _auto_consumir(personaje, bit) -> None:
-    """
-    Consumo de emergencia durante una expedición.
-    Busca por tipo (data-driven), nunca por nombre hardcodeado.
-    """
+    """Consumo de emergencia durante expedición — busca por tipo, no por nombre."""
     if personaje.sed > 85:
-        item = _buscar_item_por_tipo(personaje, "agua")
+        item = _item_por_tipo(personaje, "agua")
         if item:
             ok, _ = personaje.usar_item(item["nombre"])
-            if ok:
-                bit.entrada("Bebiste al vuelo. No podías más.", "aviso")
-
+            if ok: bit.entrada("Bebiste al vuelo. No podías más.", "aviso")
     if personaje.hambre > 90:
-        item = _buscar_item_por_tipo(personaje, "comida")
+        item = _item_por_tipo(personaje, "comida")
         if item:
             ok, _ = personaje.usar_item(item["nombre"])
-            if ok:
-                bit.entrada("Comiste algo al vuelo.", "aviso")
-
+            if ok: bit.entrada("Comiste algo al vuelo.", "aviso")
     if personaje.salud < personaje.salud_max * 0.30:
-        item = _buscar_item_por_tipo(personaje, "medicina")
+        item = _item_por_tipo(personaje, "medicina")
         if item:
             ok, msg = personaje.usar_item(item["nombre"])
-            if ok:
-                bit.entrada(f"Usé {item['nombre']} de emergencia. {msg}", "aviso")
+            if ok: bit.entrada(f"Usé {item['nombre']} de emergencia. {msg}", "aviso")
 
 
-def _buscar_item_por_tipo(personaje, tipo: str) -> dict | None:
-    """Retorna el primer item del inventario que coincida con el tipo dado."""
+def _item_por_tipo(personaje, tipo: str) -> dict | None:
     return next(
-        (i for i in personaje.inventario if _tipo_item(i) == tipo),
+        (i for i in personaje.inventario if _tipo_funcional(i) == tipo),
         None
     )
 
 
-def _tipo_item(item: dict) -> str:
-    """
-    Determina el tipo funcional de un item.
-    Usa el campo 'tipo' si existe; si no, intenta inferirlo del catálogo ITEMS.
-    """
-    tipo = item.get("tipo", "")
-    if tipo:
-        return tipo
+def _tipo_funcional(item: dict) -> str:
+    t = item.get("tipo", "")
+    if t:
+        return t
     nombre = item.get("nombre", "")
     for defn in ITEMS.values():
         if defn.get("nombre") == nombre:
@@ -297,15 +235,16 @@ def _tipo_item(item: dict) -> str:
     return ""
 
 
-def _exportar_imagenes(log_plano: str, personaje, exportar_img: bool) -> str:
-    if not exportar_img:
+def _exportar_imagen_partida(log_plano: str, personaje, exportar: bool) -> str:
+    if not exportar:
         return ""
-    from engine.bitacora import exportar_imagen, exportar_perfil
-    nombre_img = f"saves/bitacora_dia{personaje.dia}.png"
+    from engine.bitacora      import exportar_imagen, exportar_perfil
+    from engine.save_manager  import siguiente_ruta_bitacora
+    ruta = siguiente_ruta_bitacora(personaje.partida_id, personaje.dia)
     try:
-        ruta = exportar_imagen(log_plano, nombre_img)
+        resultado = exportar_imagen(log_plano, str(ruta))
         exportar_perfil(personaje, "saves/perfil.png")
-        return ruta
+        return resultado
     except Exception as e:
         print(f"  [TICK] Imagen no generada: {e}")
         return ""

@@ -23,13 +23,15 @@ import select
 
 _WINDOWS = os.name == "nt"
 
-_R   = "\033[0m"
-_VE  = "\033[92m"
-_AM  = "\033[93m"
-_CI  = "\033[96m"
-_GR  = "\033[90m"
-_NE  = "\033[1m"
-_DIM = "\033[2m"
+from engine.constants import (
+    ANSI_RESET as _R,
+    ANSI_VERDE as _VE,
+    ANSI_AMARILLO as _AM,
+    ANSI_CYAN as _CI,
+    ANSI_GRIS as _GR,
+    ANSI_NEGRITA as _NE,
+    ANSI_DIM as _DIM,
+)
 
 
 def es_interactivo() -> bool:
@@ -113,7 +115,8 @@ def _getch_unix() -> str:
 # ──────────────────────────────────────────────────────────────
 
 def leer_entrada(prompt: str = "> ",
-                 opciones_nav: list[str] | None = None) -> str:
+                 opciones_nav: list[str] | None = None,
+                 opciones_nav_sub: list[str] | None = None) -> str:
     """
     Reemplaza input() con soporte transparente de navegación.
 
@@ -126,6 +129,9 @@ def leer_entrada(prompt: str = "> ",
       Enter      — retorna "".
       Esc        — retorna "".
       Sin tty    — equivale exactamente a input(prompt).
+
+    opciones_nav_sub: líneas de subtext opcionales (una por opción),
+                      se muestran bajo cada ítem en el menú navegable.
     """
     if not es_interactivo():
         return input(prompt)
@@ -146,6 +152,7 @@ def leer_entrada(prompt: str = "> ",
             opciones_nav,
             seleccion_inicial=sel_inicial,
             limpiar=True,
+            subtextos=opciones_nav_sub,
         )
         if idx >= 0:
             return str(idx + 1)
@@ -199,18 +206,21 @@ def menu_navegable(titulo: str,
                    opciones: list[str],
                    subtitulo: str = "",
                    seleccion_inicial: int = 0,
-                   limpiar: bool = True) -> int:
+                   limpiar: bool = True,
+                   subtextos: list[str] | None = None) -> int:
     """
     Menú con ↑↓ + números directos + Enter.
     limpiar=True  → limpia pantalla (menús standalone).
     limpiar=False → sobreescribe in-place sin tocar el contenido superior.
+    subtextos     → lista paralela a opciones con una línea extra por ítem
+                    (e.g. clima, descripción breve).
     Retorna índice 0-based o -1 si ESC / sin terminal.
     """
     if not es_interactivo() or not opciones:
         return -1
 
     sel           = max(0, min(seleccion_inicial, len(opciones) - 1))
-    n_lineas_menu = _altura_menu(titulo, subtitulo, opciones)
+    n_lineas_menu = _altura_menu(titulo, subtitulo, opciones, subtextos)
     primer_render = True
 
     while True:
@@ -220,7 +230,7 @@ def menu_navegable(titulo: str,
             sys.stdout.write(f"\033[{n_lineas_menu}A\033[J")
         primer_render = False
 
-        _dibujar_menu(titulo, opciones, subtitulo, sel)
+        _dibujar_menu(titulo, opciones, subtitulo, sel, subtextos)
 
         k = getch()
         if   k == "up":    sel = (sel - 1) % len(opciones)
@@ -233,26 +243,35 @@ def menu_navegable(titulo: str,
                 return n
 
 
-def _altura_menu(titulo: str, subtitulo: str, opciones: list[str]) -> int:
+def _altura_menu(titulo: str, subtitulo: str, opciones: list[str],
+                 subtextos: list[str] | None = None) -> int:
     n = 2
     if subtitulo: n += 1
     n += 1
     n += len(opciones)
+    if subtextos:
+        n += sum(1 for s in subtextos if s)
     n += 2
     return n
 
 
-def _dibujar_menu(titulo, opciones, subtitulo, sel) -> None:
+def _dibujar_menu(titulo, opciones, subtitulo, sel,
+                  subtextos: list[str] | None = None) -> None:
     ancho = max(42, len(titulo) + 6)
     lines = [f"\n{_AM}{_NE}  {titulo}{_R}"]
     if subtitulo:
         lines.append(f"  {_DIM}{subtitulo}{_R}")
     lines.append(f"  {_GR}{chr(9552) * ancho}{_R}")
     for i, op in enumerate(opciones):
+        sub = subtextos[i] if subtextos and i < len(subtextos) else ""
         if i == sel:
             lines.append(f"  {_VE}{_NE}\u25b6  {i+1:2d}. {op}{_R}")
+            if sub:
+                lines.append(f"  {_VE}       {sub}{_R}")
         else:
             lines.append(f"  {_CI}    {i+1:2d}. {op}{_R}")
+            if sub:
+                lines.append(f"  {_GR}       {sub}{_R}")
     lines.append(f"\n  {_DIM}[\u2191\u2193] navegar  [Enter/N\u00fam] confirmar  [Esc] cancelar{_R}")
     sys.stdout.write("\n".join(lines) + "\n")
     sys.stdout.flush()

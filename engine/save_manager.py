@@ -11,12 +11,15 @@
 # ============================================================
 
 import json
+import logging
 import shutil
 import time
 from datetime import datetime
 from pathlib import Path
 
-SAVE_VERSION = 5
+logger = logging.getLogger(__name__)
+
+SAVE_VERSION = 15
 
 DIR_SAVES        = Path("saves")
 DIR_BACKUPS      = DIR_SAVES / "backups"
@@ -53,10 +56,10 @@ def cargar() -> tuple:
         with open(FILE_CURRENT, "r", encoding="utf-8") as f:
             data = json.load(f)
     except (json.JSONDecodeError, IOError) as e:
-        print(f"  [SAVE] Guardado corrupto: {e}")
+        logger.warning("Guardado corrupto: %s", e)
         data = _recuperar_desde_backup()
         if data is None:
-            print("  [SAVE] Sin backups disponibles. Partida perdida.")
+            logger.error("Sin backups disponibles. Partida perdida.")
             return None, []
 
     version = data.get("save_version", 1)
@@ -67,7 +70,7 @@ def cargar() -> tuple:
     try:
         return Sobreviviente.desde_dict(data["personaje"]), data.get("opciones_pendientes", [])
     except Exception as e:
-        print(f"  [SAVE] Error reconstruyendo personaje: {e}")
+        logger.error("Error reconstruyendo personaje: %s", e)
         return None, []
 
 
@@ -272,8 +275,115 @@ def _migrar(data: dict, version_actual: int) -> dict:
             )
             cambios.append("partida_id generado")
 
+    if version_actual < 6:
+        from engine.medical_system import estado_cuerpo_base
+        if "cuerpo" not in p:
+            p["cuerpo"] = estado_cuerpo_base()
+            cambios.append("cuerpo")
+        if "farmaco_carga" not in p:
+            p["farmaco_carga"] = 0.0
+            cambios.append("farmaco_carga")
+
+    if version_actual < 7:
+        if "historial_farmacos" not in p:
+            p["historial_farmacos"] = []
+            cambios.append("historial_farmacos")
+
+    if version_actual < 8:
+        if "especialidades_desbloqueadas" not in p:
+            p["especialidades_desbloqueadas"] = {k: [] for k in p.get("skills", {})}
+            cambios.append("especialidades_desbloqueadas")
+        if "condiciones_cronicas" not in p:
+            p["condiciones_cronicas"] = []
+            cambios.append("condiciones_cronicas")
+
+    if version_actual < 9:
+        if "relaciones_refugio" not in p:
+            from engine.relaciones import estado_relaciones_refugio_base
+
+            p["relaciones_refugio"] = estado_relaciones_refugio_base()
+            cambios.append("relaciones_refugio")
+
+    if version_actual < 10:
+        # v10: NPCs con hambre y salud; nuevos NPCs (elena, viktor) añadidos.
+        from engine.relaciones import estado_relaciones_refugio_base, REFUGIO_NPCS
+        base = estado_relaciones_refugio_base()
+        rels = p.get("relaciones_refugio", {})
+        for npc_id, npc_base in base.items():
+            if npc_id not in rels:
+                rels[npc_id] = dict(npc_base)
+                cambios.append(f"npc_nuevo:{npc_id}")
+            else:
+                for campo in ("hambre", "salud"):
+                    if campo not in rels[npc_id]:
+                        rels[npc_id][campo] = npc_base.get(campo, 50)
+        p["relaciones_refugio"] = rels
+
+    if version_actual < 11:
+        # v11: campos de autonomía NPC.
+        _CAMPOS_NPC_V11 = {
+            "en_expedicion": False, "dias_expedicion": 0,
+            "veces_peleado": 0, "quiere_irse": False,
+        }
+        rels = p.get("relaciones_refugio", {})
+        for npc_estado in rels.values():
+            for campo, valor in _CAMPOS_NPC_V11.items():
+                if campo not in npc_estado:
+                    npc_estado[campo] = valor
+            if "personalidad" not in npc_estado:
+                npc_estado["personalidad"] = "neutral"
+            if "puede_expedicion" not in npc_estado:
+                npc_estado["puede_expedicion"] = False
+        p["relaciones_refugio"] = rels
+        cambios.append("npc_autonomia_v11")
+
+    if version_actual < 12:
+        # v12: árbol genealógico + campos familiares en NPCs.
+        _CAMPOS_NPC_V12 = {
+            "apellido": "", "genero": "masculino", "edad": 30, "desc": "",
+            "estado_relacion": "desconocido", "es_menor": False,
+            "padres": [], "hijos": [], "pareja_id": None, "embarazo_ticks": 0,
+        }
+        rels = p.get("relaciones_refugio", {})
+        for npc_estado in rels.values():
+            for campo, valor in _CAMPOS_NPC_V12.items():
+                if campo not in npc_estado:
+                    npc_estado[campo] = valor
+        p["relaciones_refugio"] = rels
+        if "familia" not in p:
+            p["familia"] = {}
+        cambios.append("arbol_genealogico_v12")
+
+    if version_actual < 13:
+        # v13: animales_refugio, edad_inicio, penalizaciones_envejecimiento, miedo NPC.
+        if "animales_refugio" not in p:
+            p["animales_refugio"] = []
+        if "edad_inicio" not in p:
+            p["edad_inicio"] = p.get("edad", 25)
+        if "penalizaciones_envejecimiento" not in p:
+            p["penalizaciones_envejecimiento"] = []
+        rels = p.get("relaciones_refugio", {})
+        for npc_estado in rels.values():
+            if "miedo" not in npc_estado:
+                npc_estado["miedo"] = 0
+        p["relaciones_refugio"] = rels
+        cambios.append("envejecimiento_animales_miedo_v13")
+
+    if version_actual < 14:
+        if "almacen" not in p:
+            p["almacen"] = []
+        cambios.append("almacen_refugio_v14")
+
+    if version_actual < 15:
+        # v14 → v15: campos de fuego y trampas
+        p.setdefault("fuego_activo", False)
+        p.setdefault("combustible_restante", 0)
+        p.setdefault("temperatura_refugio", 18.0)
+        p.setdefault("trampas_activas", [])
+        cambios.append("fuego_trampas_v15")
+
     if cambios:
-        print(f"  [SAVE] Migración v{version_actual}→{SAVE_VERSION}: {', '.join(cambios)}")
+        logger.info("Migración v%d→%d: %s", version_actual, SAVE_VERSION, ", ".join(cambios))
     data["personaje"]    = p
     data["save_version"] = SAVE_VERSION
     return data
@@ -286,21 +396,53 @@ def _migrar(data: dict, version_actual: int) -> dict:
 def registrar_muerte(personaje, causa: str = "desconocida") -> int:
     _asegurar_directorios()
     tabla = _cargar_leaderboard()
+
+    # Estadísticas de familia
+    rels = getattr(personaje, "relaciones_refugio", {})
+    familia_count = len(rels)
+    animales_count = len(getattr(personaje, "animales_refugio", []))
+    tuvo_pareja = any(
+        v.get("tipo") == "pareja"
+        for v in getattr(personaje, "familia", {}).values()
+    )
+    tuvo_hijos = any(
+        v.get("tipo") in ("hijo", "hija")
+        for v in getattr(personaje, "familia", {}).values()
+    )
+
+    # Mejor skill
+    skills = getattr(personaje, "skills", {})
+    mejor_skill = max(skills, key=skills.get) if skills else ""
+
+    # Condiciones crónicas al morir
+    condiciones_al_morir = [
+        c.get("nombre", c.get("clave", "?"))
+        for c in getattr(personaje, "condiciones_cronicas", [])
+    ]
+
     entrada = {
-        "partida_id":   personaje.partida_id,
-        "nombre":       f"{personaje.nombre} {personaje.apellido}",
-        "genero":       personaje.genero,
-        "background":   personaje.background["nombre"],
-        "dias":         personaje.dia,
-        "hora":         personaje.hora,
-        "expediciones": personaje.expediciones_completadas,
-        "infectados":   personaje.infectados_eliminados,
-        "bandidos":     personaje.bandidos_eliminados,
-        "items":        personaje.items_recolectados,
-        "rasgos":       personaje.rasgos,
-        "causa_muerte": causa,
-        "fecha":        datetime.now().strftime("%Y-%m-%d"),
-        "puntuacion":   _calcular_puntuacion(personaje),
+        "partida_id":        personaje.partida_id,
+        "nombre":            f"{personaje.nombre} {personaje.apellido}",
+        "genero":            personaje.genero,
+        "background":        personaje.background["nombre"],
+        "dias":              personaje.dia,
+        "hora":              personaje.hora,
+        "expediciones":      personaje.expediciones_completadas,
+        "infectados":        personaje.infectados_eliminados,
+        "bandidos":          personaje.bandidos_eliminados,
+        "items":             personaje.items_recolectados,
+        "rasgos":            personaje.rasgos,
+        "causa_muerte":      causa,
+        "fecha":             datetime.now().strftime("%Y-%m-%d"),
+        "puntuacion":        _calcular_puntuacion(personaje),
+        # Campos de legado enriquecido
+        "edad_final":        getattr(personaje, "edad", "?"),
+        "familia_count":     familia_count,
+        "animales_count":    animales_count,
+        "tuvo_pareja":       tuvo_pareja,
+        "tuvo_hijos":        tuvo_hijos,
+        "mejor_skill":       mejor_skill,
+        "condiciones_al_morir": condiciones_al_morir,
     }
     tabla.append(entrada)
     tabla.sort(key=lambda e: (e["dias"], e["puntuacion"]), reverse=True)
@@ -313,32 +455,30 @@ def obtener_leaderboard() -> list[dict]:
     return _cargar_leaderboard()
 
 
-def mostrar_leaderboard(limite: int = 10) -> str:
+def eco_del_pasado() -> str:
+    """
+    Retorna un mensaje narrativo breve que referencia a un personaje caído previo.
+    Destinado a mostrarse al iniciar una nueva partida si hay entradas en el leaderboard.
+    Retorna '' si no hay entradas.
+    """
     tabla = _cargar_leaderboard()
     if not tabla:
-        return "\n  (No hay entradas en el ranking aún.)\n"
+        return ""
 
-    AM  = "\033[93m"; VE = "\033[92m"; CI = "\033[96m"
-    GR  = "\033[90m"; NE = "\033[1m";  R  = "\033[0m"
-    medallas = {1: "🥇", 2: "🥈", 3: "🥉"}
+    import random
+    entrada = random.choice(tabla[:min(5, len(tabla))])
+    nombre = entrada.get("nombre", "Alguien")
+    dias   = entrada.get("dias", 0)
+    causa  = entrada.get("causa_muerte", "causas desconocidas")
+    bg     = entrada.get("background", "superviviente")
 
-    lineas = [
-        f"\n{AM}{NE}{'═'*65}",
-        f"  TABLA DE CLASIFICACIÓN — SUPERVIVIENTES CAÍDOS",
-        f"{'─'*65}{R}",
-        f"  {'#':<3} {'Nombre':<22} {'Trasfondo':<22} {'Días':>5} {'Exp':>4} {'Pts':>6}",
-        f"{GR}{'─'*65}{R}",
+    frases = [
+        f"Las paredes de este mundo recuerdan a {nombre}, {bg.lower()} que vivió {dias} días antes de caer por {causa}.",
+        f"Hace tiempo, {nombre} caminó por estas ruinas. Duró {dias} días. Murió por {causa}.",
+        f"En algún lugar, hay un rastro de {nombre}. {dias} días de supervivencia y luego... {causa}.",
+        f"Este mundo vio a {nombre} luchar {dias} días. Al final, {causa} puso fin a su historia.",
     ]
-    for i, e in enumerate(tabla[:limite], 1):
-        med = medallas.get(i, f" {i}.")
-        col = f"{AM}{NE}" if i == 1 else (VE if i <= 3 else (CI if i <= 5 else R))
-        lineas.append(
-            f"  {col}{med:<3} {e['nombre'][:21]:<22} {e['background'][:21]:<22}"
-            f" {e['dias']:>5}d {e['expediciones']:>3}x {e['puntuacion']:>6}{R}"
-        )
-        lineas.append(f"       {GR}↳ {e.get('causa_muerte','?')[:30]} — {e.get('fecha','')}{R}")
-    lineas.append(f"{AM}{'═'*65}{R}\n")
-    return "\n".join(lineas)
+    return random.choice(frases)
 
 
 def _calcular_puntuacion(personaje) -> int:
@@ -385,7 +525,7 @@ def _recuperar_desde_backup() -> dict | None:
         try:
             with open(bk, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            print(f"  [SAVE] Recuperado desde {bk.name}")
+            logger.info("Recuperado desde %s", bk.name)
             return data
         except Exception:
             continue
@@ -410,7 +550,7 @@ def _escribir_atomico(ruta: Path, data) -> bool:
         tmp.replace(ruta)
         return True
     except Exception as e:
-        print(f"  [SAVE] Error al guardar: {e}")
+        logger.error("Error al guardar: %s", e)
         if tmp.exists():
             tmp.unlink()
         return False

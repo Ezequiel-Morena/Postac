@@ -4,18 +4,20 @@
 import os
 import random
 import textwrap
+import unicodedata
 from pathlib import Path
 
 
-# ── Colores ANSI ──────────────────────────────────────────────
-R   = "\033[0m"
-VE  = "\033[92m"
-RO  = "\033[91m"
-AM  = "\033[93m"
-CI  = "\033[96m"
-GR  = "\033[90m"
-BL  = "\033[97m"
-NE  = "\033[1m"
+from engine.constants import (
+    ANSI_RESET as R,
+    ANSI_VERDE as VE,
+    ANSI_ROJO as RO,
+    ANSI_AMARILLO as AM,
+    ANSI_CYAN as CI,
+    ANSI_GRIS as GR,
+    ANSI_BLANCO as BL,
+    ANSI_NEGRITA as NE,
+)
 
 COLOR_TIPO = {
     "normal":          BL,
@@ -266,28 +268,66 @@ def render_texto_plano(bitacora: Bitacora, personaje,
 # ──────────────────────────────────────────────────────────────
 
 _FUENTES = [
+    "/usr/share/fonts/truetype/noto/NotoSansMono-Regular.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
     "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
     "/usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf",
     "/usr/share/fonts/truetype/freefont/FreeMono.ttf",
+    "/usr/share/fonts/truetype/noto/NotoEmoji-Regular.ttf",
+    "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
     "/System/Library/Fonts/Monaco.ttf",
     "C:/Windows/Fonts/consola.ttf",
 ]
 _FUENTES_BOLD = [
+    "/usr/share/fonts/truetype/noto/NotoSansMono-Bold.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
     "/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf",
 ]
 
 
-def _cargar_fuente(candidatas, size):
+from engine.font_utils import cargar_fuente as _cargar_fuente
+
+
+def _cargar_pool_fuentes(size: int, bold: bool = False):
+    rutas = _FUENTES_BOLD if bold else _FUENTES
+    fuentes = []
     from PIL import ImageFont
-    for ruta in candidatas:
+    for ruta in rutas:
         if os.path.exists(ruta):
             try:
-                return ImageFont.truetype(ruta, size)
+                fuentes.append(ImageFont.truetype(ruta, size))
             except Exception:
                 pass
-    return ImageFont.load_default()
+    if not fuentes:
+        fuentes.append(ImageFont.load_default())
+    return fuentes
+
+
+def _fuente_para_char(ch: str, fuentes) -> object:
+    if ch.isspace():
+        return fuentes[0]
+    for f in fuentes:
+        try:
+            mask = f.getmask(ch)
+            if mask.getbbox() is not None:
+                return f
+        except Exception:
+            continue
+    return fuentes[0]
+
+
+def _draw_text_safe(draw, pos, text: str, fuentes, fill) -> None:
+    text = _normalizar_texto(text)
+    x, y = pos
+    for ch in text:
+        f = _fuente_para_char(ch, fuentes)
+        draw.text((x, y), ch, fill=fill, font=f)
+        try:
+            x += int(draw.textlength(ch, font=f))
+        except Exception:
+            x += int(f.size * 0.62)
 
 
 def _color_linea(linea: str) -> tuple:
@@ -315,19 +355,27 @@ def _color_linea(linea: str) -> tuple:
     return (200, 210, 200)
 
 
+def _normalizar_texto(texto: str) -> str:
+    if not isinstance(texto, str):
+        return ""
+    # NFC evita separar acentos en múltiples codepoints al renderizar.
+    return unicodedata.normalize("NFC", texto)
+
+
 def exportar_imagen(texto_plano: str, ruta_salida: str) -> str:
     try:
         from PIL import Image, ImageDraw
     except ImportError:
         return ""
 
-    font      = _cargar_fuente(_FUENTES, 16)
-    font_bold = _cargar_fuente(_FUENTES_BOLD, 17)
+    font_pool = _cargar_pool_fuentes(20, bold=False)
+    font_pool_bold = _cargar_pool_fuentes(22, bold=True)
+    font = font_pool[0]
 
-    ANCHO = 900; MX = 40; MY = 40; LH = 22
-    max_chars = (ANCHO - MX * 2) // 9
+    ANCHO = 1400; MX = 56; MY = 52; LH = 30
+    max_chars = max(40, (ANCHO - MX * 2) // 12)
 
-    lineas_raw = texto_plano.split("\n")
+    lineas_raw = [_normalizar_texto(l) for l in texto_plano.split("\n")]
     lineas: list[str] = []
     for raw in lineas_raw:
         if len(raw) <= max_chars:
@@ -347,15 +395,15 @@ def exportar_imagen(texto_plano: str, ruta_salida: str) -> str:
     for _ in range(400):
         draw.point((_r.randint(0,ANCHO-1), _r.randint(0,alto-1)), fill=(15,25,15))
 
-    draw.text((ANCHO-165, alto-20), "DIARIO APOCALIPSIS v2.0",
-              fill=(30, 60, 30), font=font)
+    _draw_text_safe(draw, (ANCHO - 300, alto - 28), "DIARIO APOCALIPSIS v3.0",
+                    font_pool, (30, 60, 30))
 
     y = MY
     for linea in lineas:
         col  = _color_linea(linea)
         bold = any(k in linea for k in ["BITÁCORA", "RESUMEN", "ESTADO FINAL",
                                           "COMBATE —", "===", "PROGRESO"])
-        draw.text((MX, y), linea, fill=col, font=font_bold if bold else font)
+        _draw_text_safe(draw, (MX, y), linea, font_pool_bold if bold else font_pool, col)
         y += LH
 
     img.save(ruta_salida, "PNG", optimize=True)
@@ -371,10 +419,10 @@ def exportar_perfil(personaje, ruta_salida: str) -> str:
     from data.stats  import STATS
     from data.skills import SKILLS
 
-    font      = _cargar_fuente(_FUENTES, 17)
-    font_bold = _cargar_fuente(_FUENTES_BOLD, 19)
+    font_pool = _cargar_pool_fuentes(20, bold=False)
+    font_pool_bold = _cargar_pool_fuentes(23, bold=True)
 
-    W, H = 700, 580
+    W, H = 980, 820
     img  = Image.new("RGB", (W, H), color=(10, 12, 10))
     draw = ImageDraw.Draw(img)
     draw.rectangle([2, 2, W-3, H-3], outline=(40, 90, 40), width=2)
@@ -382,8 +430,14 @@ def exportar_perfil(personaje, ruta_salida: str) -> str:
     y = 28
     def wr(texto, color=(140,230,100), bold=False, indent=0):
         nonlocal y
-        draw.text((28+indent, y), texto, fill=color, font=font_bold if bold else font)
-        y += 26
+        _draw_text_safe(
+            draw,
+            (34 + indent, y),
+            _normalizar_texto(texto),
+            font_pool_bold if bold else font_pool,
+            color,
+        )
+        y += 32
 
     sexo = "♂" if personaje.genero == "Masculino" else "♀"
     wr("═"*52, (40,80,40))

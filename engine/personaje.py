@@ -1,6 +1,7 @@
 # ============================================================
 # engine/personaje.py
 # Motor del personaje — lee todo desde data/, sin datos hardcodeados.
+# Mixins: SkillsMixin (skills_mixin.py), InventoryMixin (inventory_mixin.py)
 # ============================================================
 import random
 import copy
@@ -9,33 +10,38 @@ from datetime import datetime
 
 from data.stats      import STATS, VITALES
 from data.skills     import SKILLS
+from data.condiciones_medicas import CONDICIONES_CRONICAS, PREDISPOSICION_POR_BACKGROUND
 from data.rasgos     import RASGOS
 from data.items      import ITEMS
 from data.personajes import NOMBRES, BACKGROUNDS
+from engine.constants import clamp
+from engine.medical_system import (
+    aplicar_condicion_a_cuerpo,
+    asegurar_estado_cuerpo,
+    estado_cuerpo_base,
+    aplicar_condiciones_cronicas_tick,
+    tick_medico,
+    evaluar_adquisicion_condiciones,
+)
+from engine.relaciones import estado_relaciones_refugio_base, normalizar_relaciones_guardadas
+from engine.skills_mixin import SkillsMixin
+from engine.inventory_mixin import (
+    InventoryMixin,
+    TIPOS_STACKABLES, ICONOS_TIPO, CATEGORIAS_INVENTARIO,
+    CATEGORIA_FALLBACK,
+    icono_item, categoria_item, qty_str, linea_item, info_completa,
+)
 
-# Tipos cuyas instancias se apilan por cantidad.
-# Los ítems con 'usos' individuales NO son apilables.
-_TIPOS_STACKABLES = {"comida", "agua", "municion", "material", "misc"}
-
-# Íconos por tipo de ítem
-_ICONOS_TIPO = {
-    "comida":           "🍖",
-    "agua":             "💧",
-    "medicina":         "💊",
-    "arma_fuego":       "🔫",
-    "arma_cortante":    "🔪",
-    "arma_contundente": "🪓",
-    "arma_arrojadiza":  "🏹",
-    "armadura":         "🛡 ",
-    "casco":            "⛑ ",
-    "municion":         "🔋",
-    "herramienta":      "🔧",
-    "equipo":           "🎒",
-    "equipo_especial":  "⭐",
-    "material":         "📦",
-    "libro":            "📚",
-    "misc":             "🔹",
-}
+# ── Compatibilidad: re-exportar con nombres originales ────────
+_TIPOS_STACKABLES = TIPOS_STACKABLES
+_ICONOS_TIPO = ICONOS_TIPO
+_CATEGORIAS_INVENTARIO = CATEGORIAS_INVENTARIO
+_CATEGORIA_FALLBACK = CATEGORIA_FALLBACK
+_icono_item = icono_item
+_categoria_item = categoria_item
+_qty_str = qty_str
+_linea_item = linea_item
+_info_completa = info_completa
 
 
 def _generar_partida_id(nombre: str, apellido: str) -> str:
@@ -72,10 +78,11 @@ class Condicion:
         return f"{self.nombre} ({sev})"
 
 
-class Sobreviviente:
+class Sobreviviente(SkillsMixin, InventoryMixin):
     """
     Personaje completamente data-driven.
     Todos los stats, skills y rasgos se construyen desde los archivos data/.
+    Skills en SkillsMixin, inventario/ítems/armas/crafteo en InventoryMixin.
     """
 
     def __init__(self):
@@ -85,6 +92,7 @@ class Sobreviviente:
         self.nombre   = random.choice(pool)
         self.apellido = random.choice(NOMBRES["apellidos"])
         self.edad     = random.randint(19, 54)
+        self.edad_inicio: int = self.edad  # inmutable — edad al inicio de partida
 
         # Identificador único de partida — directorio de bitácoras
         self.partida_id = _generar_partida_id(self.nombre, self.apellido)
@@ -122,6 +130,7 @@ class Sobreviviente:
             if k in self.skills:
                 self.skills[k] = min(SKILLS[k]["max"], self.skills[k] + b)
         self.skills_xp: dict[str, int] = {k: 0 for k in self.skills}
+        self.especialidades_desbloqueadas: dict[str, list[str]] = {k: [] for k in self.skills}
 
         # ── RASGOS ────────────────────────────────────────────
         self.rasgos: list[str] = []
@@ -131,11 +140,20 @@ class Sobreviviente:
         # ── CONDICIONES ───────────────────────────────────────
         self.condiciones: list[Condicion] = []
 
+        # ── SISTEMA MÉDICO MODULAR ───────────────────────────
+        self.cuerpo: dict[str, dict] = estado_cuerpo_base()
+        self.farmaco_carga: float = 0.0
+        self.historial_farmacos: list[dict] = []
+        self.condiciones_cronicas: list[dict] = []
+        self._log_medico_pendiente: list[str] = []
+        self._inicializar_condiciones_cronicas()
+
         # ── INVENTARIO ────────────────────────────────────────
         fp = STATS["fuerza"].get("efectos_pasivos", {})
         self.peso_max: float = 10.0 + self.stats["fuerza"] * fp.get("carga_max", 2.0)
         self.inventario: list[dict] = []
         self._equipar_inicio()
+        self._recalcular_especialidades()
 
         # ── CONTADORES ────────────────────────────────────────
         self.dia                      = 1
@@ -153,51 +171,61 @@ class Sobreviviente:
         self.areas_visitadas: list[str]         = []
         self.info_areas: dict[str, dict]        = {}
         self.rasgos_en_progreso: dict[str, int] = {}
+        self.relaciones_refugio: dict[str, dict] = estado_relaciones_refugio_base()
+        # Árbol genealógico: {npc_id: {tipo, nombre, apellido}}
+        self.familia: dict[str, dict] = {}
+        # Animales domésticos del refugio
+        self.animales_refugio: list[dict] = []
+        # Registro de penalizaciones de envejecimiento ya aplicadas (por umbral)
+        self.penalizaciones_envejecimiento: list[int] = []
+        # Almacén compartido del refugio (ilimitado)
+        self.almacen: list = []
+        # Estado del fuego del refugio
+        self.fuego_activo: bool = False
+        self.combustible_restante: int = 0
+        self.temperatura_refugio: float = 18.0
+        self.trampas_activas: list = []
 
         # Buffer transiente — NO se persiste en el save
         self._progreso_skills_pendiente: list[str] = []
 
     # ─────────────────────────────────────────────────────────
-    #  SKILLS
+    #  CONDICIONES CRÓNICAS
     # ─────────────────────────────────────────────────────────
 
-    def _derivar_skills(self) -> dict[str, int]:
-        return {
-            k: max(0, min(d["max"], int(sum(self.stats.get(s, 0) * m for s, m in d["derivacion"]))))
-            for k, d in SKILLS.items()
-        }
+    def _inicializar_condiciones_cronicas(self) -> None:
+        self.condiciones_cronicas = []
 
-    # ─────────────────────────────────────────────────────────
-    #  XP
-    # ─────────────────────────────────────────────────────────
-
-    def ganar_xp_skill(self, skill_key: str, xp_base: int) -> None:
-        if skill_key not in self.skills:
-            return
-        defn  = SKILLS.get(skill_key, {})
-        s_max = defn.get("max", 100)
-        if self.skills[skill_key] >= s_max:
-            return
-        mult = self.obtener_efecto_rasgo("xp_mult_global", 1.0)
-        self.skills_xp[skill_key] = self.skills_xp.get(skill_key, 0) + max(1, int(xp_base * mult))
-        while self.skills[skill_key] < s_max:
-            nivel = self.skills[skill_key]
-            xp_need = defn.get("xp_base", 10) + (nivel // 10) * defn.get("xp_incremento", 5)
-            if self.skills_xp[skill_key] >= xp_need:
-                self.skills_xp[skill_key] -= xp_need
-                self.skills[skill_key]    += 1
-                self._progreso_skills_pendiente.append(
-                    f"{defn.get('icono','📈')} {defn['nombre']}  {nivel} → {nivel+1}"
+        for key, defn in CONDICIONES_CRONICAS.items():
+            if random.random() <= float(defn.get("prob_hereditaria", 0.0)):
+                self.condiciones_cronicas.append(
+                    {
+                        "clave": key,
+                        "nombre": defn.get("nombre", key),
+                        "origen": defn.get("origen_default", "hereditaria"),
+                        "severidad": int(defn.get("severidad_base", 1)),
+                        "efectos": dict(defn.get("efectos", {})),
+                    }
                 )
-            else:
-                break
-        if self._progreso_skills_pendiente:
-            self.evaluar_rasgos_nuevos()
 
-    def recoger_progreso_skills(self) -> list[str]:
-        msgs = self._progreso_skills_pendiente.copy()
-        self._progreso_skills_pendiente.clear()
-        return msgs
+        for regla in PREDISPOSICION_POR_BACKGROUND.get(self.bg_key, []):
+            key = regla.get("condicion")
+            if key not in CONDICIONES_CRONICAS:
+                continue
+            if any(c.get("clave") == key for c in self.condiciones_cronicas):
+                continue
+            if random.random() > float(regla.get("prob", 0.0)):
+                continue
+            defn = CONDICIONES_CRONICAS[key]
+            self.condiciones_cronicas.append(
+                {
+                    "clave": key,
+                    "nombre": defn.get("nombre", key),
+                    "origen": regla.get("origen", "adquirida"),
+                    "severidad": int(defn.get("severidad_base", 1)),
+                    "efectos": dict(defn.get("efectos", {})),
+                }
+            )
 
     # ─────────────────────────────────────────────────────────
     #  RASGOS
@@ -275,189 +303,25 @@ class Sobreviviente:
         return msgs
 
     # ─────────────────────────────────────────────────────────
-    #  INVENTARIO
-    # ─────────────────────────────────────────────────────────
-
-    def _equipar_inicio(self) -> None:
-        for ref in self.background.get("items_inicio", []):
-            key = ref.get("ref")
-            if key and key in ITEMS:
-                item = copy.deepcopy(ITEMS[key])
-                for campo in ("nombre", "tipo", "peso", "desc"):
-                    if campo in ref:
-                        item[campo] = ref[campo]
-                if "cantidad_override" in ref:
-                    item["cantidad"] = ref["cantidad_override"]
-                self.inventario.append(item)
-            elif "nombre" in ref:
-                self.inventario.append(copy.deepcopy(ref))
-
-    def peso_actual(self) -> float:
-        return round(sum(i.get("peso", 0) for i in self.inventario), 2)
-
-    def puede_cargar(self, item: dict) -> bool:
-        return self.peso_actual() + item.get("peso", 0) <= self.peso_max
-
-    def _es_stackable(self, item: dict) -> bool:
-        """
-        Un ítem es apilable si no tiene 'usos' individuales
-        y su tipo está en los tipos stackables.
-        """
-        if "usos" in item:
-            return False
-        return "cantidad" in item or item.get("tipo", "") in _TIPOS_STACKABLES
-
-    def añadir_item(self, item: dict) -> bool:
-        if not self.puede_cargar(item):
-            return False
-        if self._es_stackable(item):
-            nombre = item.get("nombre")
-            for existing in self.inventario:
-                if existing.get("nombre") == nombre and self._es_stackable(existing):
-                    existing["cantidad"] = existing.get("cantidad", 1) + item.get("cantidad", 1)
-                    return True
-            nuevo = copy.deepcopy(item)
-            if "cantidad" not in nuevo:
-                nuevo["cantidad"] = 1
-            self.inventario.append(nuevo)
-            return True
-        self.inventario.append(copy.deepcopy(item))
-        return True
-
-    def tiene_item(self, nombre: str) -> bool:
-        return any(i.get("nombre") == nombre for i in self.inventario)
-
-    def obtener_item(self, nombre: str) -> dict | None:
-        return next((i for i in self.inventario if i.get("nombre") == nombre), None)
-
-    def obtener_item_por_id(self, idx_1: int) -> dict | None:
-        """Retorna el ítem por ID 1-based mostrado en el inventario."""
-        if 1 <= idx_1 <= len(self.inventario):
-            return self.inventario[idx_1 - 1]
-        return None
-
-    def remover_item(self, nombre: str, cantidad: int = 1) -> bool:
-        for i, item in enumerate(self.inventario):
-            if item.get("nombre") == nombre:
-                if item.get("cantidad", 1) > cantidad:
-                    item["cantidad"] -= cantidad
-                else:
-                    self.inventario.pop(i)
-                return True
-        return False
-
-    def descartar_por_id(self, idx_1: int) -> tuple[bool, str]:
-        """Descarta el ítem completo por ID 1-based."""
-        if 1 <= idx_1 <= len(self.inventario):
-            nombre = self.inventario.pop(idx_1 - 1)["nombre"]
-            return True, nombre
-        return False, "ID inválido"
-
-    def usar_item(self, nombre: str) -> tuple[bool, str]:
-        item = self.obtener_item(nombre)
-        if not item:
-            return False, f"No tienes '{nombre}'"
-        return self._aplicar_efectos_item(item)
-
-    def usar_item_por_id(self, idx_1: int) -> tuple[bool, str]:
-        """Usa el ítem por ID 1-based."""
-        item = self.obtener_item_por_id(idx_1)
-        if not item:
-            return False, "ID inválido"
-        return self._aplicar_efectos_item(item)
-
-    def _aplicar_efectos_item(self, item: dict) -> tuple[bool, str]:
-        efectos  = item.get("efectos", {})
-        msgs: list[str] = []
-        mult_med = self.obtener_efecto_rasgo("multiplicador_medicina", 1.0)
-
-        if "salud" in efectos:
-            ganado = int(min(efectos["salud"] * mult_med, self.salud_max - self.salud))
-            self.salud += ganado
-            msgs.append(f"+{ganado} Salud")
-
-        if "hambre" in efectos:
-            mult_h = self.obtener_efecto_rasgo("multiplicador_consumo_hambre", 1.0)
-            self.hambre = max(0, self.hambre + int(efectos["hambre"] / mult_h))
-            msgs.append("Hambre reducida" if efectos["hambre"] < 0 else "Hambre aumentada")
-
-        if "sed" in efectos:
-            mult_s = self.obtener_efecto_rasgo("multiplicador_consumo_sed", 1.0)
-            self.sed = max(0, self.sed + int(efectos["sed"] / mult_s))
-            msgs.append("Sed reducida" if efectos["sed"] < 0 else "Sed aumentada")
-
-        if "fatiga" in efectos:
-            self.fatiga = max(0, self.fatiga + efectos["fatiga"])
-            msgs.append("Fatiga reducida" if efectos["fatiga"] < 0 else "Fatiga aumentada")
-
-        if "condicion_remove" in efectos:
-            self._reducir_condicion(efectos["condicion_remove"])
-            msgs.append(f"Tratando {efectos['condicion_remove']}")
-
-        if "skill_xp" in efectos:
-            mult_libro = self.obtener_efecto_rasgo("xp_mult_libro", 1.0)
-            for sk, xp in efectos["skill_xp"].items():
-                self.ganar_xp_skill(sk, max(1, int(xp * mult_libro)))
-            self.libros_leidos += 1
-            msgs.append("Conocimiento adquirido")
-
-        if item.get("nombre") == "Morfina":
-            self.usos_morfina += 1
-
-        # Consumir ítem
-        if "usos" in item:
-            item["usos"] -= 1
-            if item["usos"] <= 0:
-                self.inventario.remove(item)
-        elif "cantidad" in item:
-            item["cantidad"] -= 1
-            if item["cantidad"] <= 0:
-                self.inventario.remove(item)
-        else:
-            self.inventario.remove(item)
-
-        self.evaluar_rasgos_nuevos()
-        return True, " | ".join(msgs) if msgs else "Sin efecto notable"
-
-    def arma_equipada(self) -> dict | None:
-        armas = [i for i in self.inventario
-                 if i.get("tipo") in ("arma_contundente", "arma_cortante",
-                                       "arma_fuego", "arma_arrojadiza")]
-        return max(armas, key=lambda a: sum(a.get("daño", (1, 3))) / 2) if armas else None
-
-    def defensa_total(self) -> int:
-        return sum(i.get("defensa", 0) for i in self.inventario
-                   if i.get("tipo") in ("armadura", "casco"))
-
-    def listar_inventario(self) -> list[str]:
-        """Líneas formateadas con ID visible para interacción por comandos."""
-        if not self.inventario:
-            return ["  (vacío)"]
-        return [_linea_item(item, idx + 1) for idx, item in enumerate(self.inventario)]
-
-    def info_item(self, idx_1: int) -> dict | None:
-        """Dict enriquecido para la pantalla de inspección."""
-        item = self.obtener_item_por_id(idx_1)
-        return _info_completa(item, self) if item else None
-
-    # ─────────────────────────────────────────────────────────
     #  CONDICIONES
     # ─────────────────────────────────────────────────────────
 
     def añadir_condicion(self, c: Condicion) -> None:
         if not any(x.clave == c.clave for x in self.condiciones):
             self.condiciones.append(c)
+            self._log_medico_pendiente.extend(aplicar_condicion_a_cuerpo(self, c))
             if c.severidad >= 3:
                 self.veces_condicion_grave += 1
                 self.evaluar_rasgos_nuevos()
 
-    def _reducir_condicion(self, clave: str) -> None:
+    def _reducir_condicion(self, clave: str) -> bool:
         for c in self.condiciones:
             if c.clave == clave:
                 c.severidad -= 1
                 if c.severidad <= 0:
                     self.condiciones.remove(c)
-                return
+                return True
+        return False
 
     def tick_condiciones(self) -> None:
         activas = []
@@ -498,6 +362,7 @@ class Sobreviviente:
             valor += self.obtener_efecto_rasgo("bonus_check_experto", 0)
         if contexto:
             valor += self.modificador_skill_en_contexto(skill, contexto)
+        valor += self.bonus_especialidades(skill, contexto)
         return random.randint(1, 100) <= valor - (dificultad - 50)
 
     def multiplicador_loot(self) -> float:
@@ -548,9 +413,71 @@ class Sobreviviente:
         if self.hora < int(horas):
             self.dia += 1
         self.tick_condiciones()
+        self._log_medico_pendiente.extend(aplicar_condiciones_cronicas_tick(self, horas))
+        self._log_medico_pendiente.extend(tick_medico(self, horas))
+
+    def recoger_log_medico(self) -> list[str]:
+        msgs = self._log_medico_pendiente.copy()
+        self._log_medico_pendiente.clear()
+        return msgs
 
     # ─────────────────────────────────────────────────────────
-    #  SERIALIZACIÓN
+    #  ENVEJECIMIENTO
+    # ─────────────────────────────────────────────────────────
+
+    # Umbrales de edad → (stat, penalidad, mensaje narrativo)
+    _PENALIZACIONES_EDAD: dict[int, list[tuple[str, int, str]]] = {
+        50: [("fuerza",     -1, "Los años pesan sobre tus articulaciones.")],
+        55: [("resistencia",-1, "Tu cuerpo ya no se recupera tan rápido.")],
+        60: [("fuerza",     -1, "La vejez cobra su precio en músculo."),
+             ("destreza",   -1, "Tus reflejos ya no son lo que eran.")],
+        65: [("resistencia",-1, "El esfuerzo prolongado te cuesta más."),
+             ("percepcion", -1, "La vista y el oído van perdiendo filo.")],
+        70: [("fuerza",     -1, "El cuerpo ya no aguanta como antes."),
+             ("inteligencia", -1, "La memoria empieza a fallar en pequeñas cosas.")],
+        75: [("resistencia",-1, "Solo la voluntad te mantiene en pie."),
+             ("destreza",   -1, "Los movimientos rápidos son cosa del pasado.")],
+        80: [("fuerza",     -2, "El cuerpo exige descanso que ya nunca basta."),
+             ("suerte",     -1, "Los años acumulan más sombra que luz.")],
+    }
+
+    def tick_envejecimiento(self) -> list[str]:
+        """
+        Calcula si el personaje cumplió años desde el último tick.
+        Aplica penalizaciones de stat por umbrales de edad.
+        Retorna mensajes narrativos de los eventos de envejecimiento.
+        """
+        nueva_edad = self.edad_inicio + self.dia // 365
+        if nueva_edad <= self.edad:
+            return []
+
+        msgs: list[str] = []
+        for ano in range(self.edad + 1, nueva_edad + 1):
+            msgs.append(f"🎂 Cumples {ano} años. El tiempo sigue su marcha implacable.")
+            # Reducir salud máxima gradualmente a partir de los 60
+            if ano >= 60 and ano % 5 == 0:
+                reduccion = 5
+                self.salud_max = max(40, self.salud_max - reduccion)
+                self.salud = min(self.salud, self.salud_max)
+                msgs.append(f"  Tu cuerpo acusa los años: salud máxima -{reduccion}.")
+            # Penalizaciones de stats por umbrales
+            if ano in self._PENALIZACIONES_EDAD and ano not in self.penalizaciones_envejecimiento:
+                for stat, delta, mensaje in self._PENALIZACIONES_EDAD[ano]:
+                    if stat in self.stats:
+                        self.stats[stat] = max(1, self.stats[stat] + delta)
+                        msgs.append(f"  {mensaje}")
+                self.penalizaciones_envejecimiento.append(ano)
+
+        self.edad = nueva_edad
+
+        # Muerte natural: probabilidad acumulativa a partir de los 70
+        if self.edad >= 70:
+            prob_muerte = max(0.0, (self.edad - 70) * 0.012)
+            if random.random() < prob_muerte:
+                self.salud = 0
+                msgs.append(f"💀 A los {self.edad} años, el corazón cede. Muerte natural.")
+
+        return msgs
     # ─────────────────────────────────────────────────────────
 
     def a_dict(self) -> dict:
@@ -579,6 +506,11 @@ class Sobreviviente:
                  "duracion": c.duracion, "efectos": c.efectos, "turnos_rest": c.turnos_rest}
                 for c in self.condiciones
             ],
+            "cuerpo":                   self.cuerpo,
+            "farmaco_carga":            self.farmaco_carga,
+            "historial_farmacos":       self.historial_farmacos,
+            "especialidades_desbloqueadas": self.especialidades_desbloqueadas,
+            "condiciones_cronicas":     self.condiciones_cronicas,
             "inventario":               self.inventario,
             "peso_max":                 self.peso_max,
             "dia":                      self.dia,
@@ -596,6 +528,16 @@ class Sobreviviente:
             "areas_visitadas":          self.areas_visitadas,
             "info_areas":               self.info_areas,
             "rasgos_en_progreso":       self.rasgos_en_progreso,
+            "relaciones_refugio":       self.relaciones_refugio,
+            "familia":                  self.familia,
+            "animales_refugio":         self.animales_refugio,
+            "almacen":                   self.almacen,
+            "fuego_activo":              self.fuego_activo,
+            "combustible_restante":      self.combustible_restante,
+            "temperatura_refugio":       self.temperatura_refugio,
+            "trampas_activas":           self.trampas_activas,
+            "edad_inicio":              self.edad_inicio,
+            "penalizaciones_envejecimiento": self.penalizaciones_envejecimiento,
         }
 
     @classmethod
@@ -629,6 +571,11 @@ class Sobreviviente:
                           cd["duracion"], cd["efectos"])
             c.turnos_rest = cd["turnos_rest"]
             p.condiciones.append(c)
+        p.cuerpo = asegurar_estado_cuerpo(data.get("cuerpo"))
+        p.farmaco_carga = float(data.get("farmaco_carga", 0.0))
+        p.historial_farmacos = list(data.get("historial_farmacos", []))
+        p.especialidades_desbloqueadas = dict(data.get("especialidades_desbloqueadas", {}))
+        p.condiciones_cronicas = list(data.get("condiciones_cronicas", []))
         p.inventario   = data.get("inventario", [])
         p.peso_max     = data.get("peso_max", 20)
         p.dia          = data.get("dia", 1)
@@ -646,7 +593,22 @@ class Sobreviviente:
         p.areas_visitadas          = data.get("areas_visitadas", [])
         p.info_areas               = data.get("info_areas", {})
         p.rasgos_en_progreso       = data.get("rasgos_en_progreso", {})
+        p.relaciones_refugio = normalizar_relaciones_guardadas(data.get("relaciones_refugio"))
+        p.familia = {
+            k: v for k, v in data.get("familia", {}).items()
+            if isinstance(v, dict)
+        }
+        p.animales_refugio = list(data.get("animales_refugio", []))
+        p.almacen = list(data.get("almacen", []))
+        p.fuego_activo         = data.get("fuego_activo", False)
+        p.combustible_restante = data.get("combustible_restante", 0)
+        p.temperatura_refugio  = data.get("temperatura_refugio", 18.0)
+        p.trampas_activas      = list(data.get("trampas_activas", []))
+        p.edad_inicio = data.get("edad_inicio", p.edad)
+        p.penalizaciones_envejecimiento = list(data.get("penalizaciones_envejecimiento", []))
         p._progreso_skills_pendiente = []
+        p._log_medico_pendiente = []
+        p._recalcular_especialidades()
         return p
 
     # ─────────────────────────────────────────────────────────
@@ -676,71 +638,3 @@ class Sobreviviente:
         ls.append(f"│ Día {self.dia} — {self.hora:02d}:00hs  | Carga {self.peso_actual():.1f}/{self.peso_max}kg")
         ls.append("└" + "─" * 55)
         return "\n".join(ls)
-
-
-# ──────────────────────────────────────────────────────────────
-#  HELPERS DE PRESENTACIÓN DE ÍTEMS (usados por main.py)
-# ──────────────────────────────────────────────────────────────
-
-def _icono_item(item: dict) -> str:
-    return _ICONOS_TIPO.get(item.get("tipo", ""), "·")
-
-
-def _qty_str(item: dict) -> str:
-    if "cantidad" in item:
-        n = item["cantidad"]
-        return f"×{n}" if n != 1 else "×1"
-    if "usos" in item:
-        return f"{item['usos']}u"
-    if "durabilidad" in item:
-        return f"{item['durabilidad']}%"
-    return "  —"
-
-
-def _linea_item(item: dict, idx: int) -> str:
-    icono  = _icono_item(item)
-    nombre = item.get("nombre", "?")[:28]
-    qty    = _qty_str(item)
-    peso   = item.get("peso", 0)
-    return f"{idx:3d}  {icono} {nombre:<29} {qty:>5}   {peso:.1f}kg"
-
-
-def _info_completa(item: dict, personaje) -> dict:
-    """Construye un dict rico para la pantalla de inspección de ítem."""
-    efectos = item.get("efectos", {})
-    lineas  = []
-
-    if "salud" in efectos:
-        mult = personaje.obtener_efecto_rasgo("multiplicador_medicina", 1.0)
-        v    = int(efectos["salud"] * mult)
-        suf  = "  ✦ rasgo médico activo" if mult > 1 else ""
-        lineas.append(f"  Salud      +{v} hp{suf}")
-    if "hambre" in efectos:
-        lineas.append(f"  Hambre     {efectos['hambre']:+d}")
-    if "sed" in efectos:
-        lineas.append(f"  Sed        {efectos['sed']:+d}")
-    if "fatiga" in efectos:
-        lineas.append(f"  Fatiga     {efectos['fatiga']:+d}")
-    if "condicion_remove" in efectos:
-        lineas.append(f"  Trata      {efectos['condicion_remove']}")
-    if "skill_xp" in efectos:
-        for sk, xp in efectos["skill_xp"].items():
-            mult_l = personaje.obtener_efecto_rasgo("xp_mult_libro", 1.0)
-            v2     = int(xp * mult_l)
-            lineas.append(f"  XP {sk:<12} +{v2}")
-    if "defensa" in item:
-        lineas.append(f"  Defensa    +{item['defensa']}")
-    if item.get("tipo") in ("arma_fuego", "arma_cortante", "arma_contundente"):
-        daño = item.get("daño", (0, 0))
-        lineas.append(f"  Daño       {daño[0]}-{daño[1]}")
-
-    return {
-        "nombre":   item.get("nombre", "?"),
-        "tipo":     item.get("tipo", "—"),
-        "icono":    _icono_item(item),
-        "peso":     item.get("peso", 0),
-        "desc":     item.get("desc", "Sin descripción."),
-        "qty_str":  _qty_str(item),
-        "efectos":  lineas,
-        "usable":   bool(efectos),
-    }

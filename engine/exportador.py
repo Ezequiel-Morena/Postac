@@ -40,14 +40,7 @@ FUENTES_BOLD_CANDIDATAS = [
 ]
 
 
-def _cargar_fuente(candidatas: list[str], size: int) -> ImageFont.FreeTypeFont:
-    for ruta in candidatas:
-        if os.path.exists(ruta):
-            try:
-                return ImageFont.truetype(ruta, size)
-            except Exception:
-                continue
-    return ImageFont.load_default()
+from engine.font_utils import cargar_fuente as _cargar_fuente
 
 
 def _obtener_color_linea(linea: str) -> tuple:

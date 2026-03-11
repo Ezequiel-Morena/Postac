@@ -19,7 +19,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-SAVE_VERSION = 15
+SAVE_VERSION = 16
 
 DIR_SAVES        = Path("saves")
 DIR_BACKUPS      = DIR_SAVES / "backups"
@@ -381,6 +381,14 @@ def _migrar(data: dict, version_actual: int) -> dict:
         p.setdefault("temperatura_refugio", 18.0)
         p.setdefault("trampas_activas", [])
         cambios.append("fuego_trampas_v15")
+
+    if version_actual < 16:
+        # v15 → v16: sistema de temperatura corporal y vestimenta
+        p.setdefault("temp_corporal", 36.5)
+        p.setdefault("ropa_equipada", {})
+        p.setdefault("humedad_ropa", 0.0)
+        p.setdefault("horas_exposicion_frio", 0.0)
+        cambios.append("temperatura_vestimenta_v16")
 
     if cambios:
         logger.info("Migración v%d→%d: %s", version_actual, SAVE_VERSION, ", ".join(cambios))

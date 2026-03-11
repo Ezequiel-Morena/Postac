@@ -152,6 +152,7 @@ class Sobreviviente(SkillsMixin, InventoryMixin):
         fp = STATS["fuerza"].get("efectos_pasivos", {})
         self.peso_max: float = 10.0 + self.stats["fuerza"] * fp.get("carga_max", 2.0)
         self.inventario: list[dict] = []
+        self.ropa_equipada: dict[str, dict] = {}
         self._equipar_inicio()
         self._recalcular_especialidades()
 
@@ -185,6 +186,11 @@ class Sobreviviente(SkillsMixin, InventoryMixin):
         self.combustible_restante: int = 0
         self.temperatura_refugio: float = 18.0
         self.trampas_activas: list = []
+        # Sistema de temperatura y vestimenta
+        self.temp_corporal: float = 36.5
+        # ropa_equipada se inicializa antes de _equipar_inicio (línea ~153)
+        self.humedad_ropa: float = 0.0
+        self.horas_exposicion_frio: float = 0.0
 
         # Buffer transiente — NO se persiste en el save
         self._progreso_skills_pendiente: list[str] = []
@@ -536,6 +542,10 @@ class Sobreviviente(SkillsMixin, InventoryMixin):
             "combustible_restante":      self.combustible_restante,
             "temperatura_refugio":       self.temperatura_refugio,
             "trampas_activas":           self.trampas_activas,
+            "temp_corporal":             self.temp_corporal,
+            "ropa_equipada":             self.ropa_equipada,
+            "humedad_ropa":              self.humedad_ropa,
+            "horas_exposicion_frio":     self.horas_exposicion_frio,
             "edad_inicio":              self.edad_inicio,
             "penalizaciones_envejecimiento": self.penalizaciones_envejecimiento,
         }
@@ -604,6 +614,10 @@ class Sobreviviente(SkillsMixin, InventoryMixin):
         p.combustible_restante = data.get("combustible_restante", 0)
         p.temperatura_refugio  = data.get("temperatura_refugio", 18.0)
         p.trampas_activas      = list(data.get("trampas_activas", []))
+        p.temp_corporal        = data.get("temp_corporal", 36.5)
+        p.ropa_equipada        = data.get("ropa_equipada", {})
+        p.humedad_ropa         = data.get("humedad_ropa", 0.0)
+        p.horas_exposicion_frio = data.get("horas_exposicion_frio", 0.0)
         p.edad_inicio = data.get("edad_inicio", p.edad)
         p.penalizaciones_envejecimiento = list(data.get("penalizaciones_envejecimiento", []))
         p._progreso_skills_pendiente = []

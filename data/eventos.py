@@ -125,11 +125,17 @@ EVENTOS = {
         "titulo":      "Sobreviviente encontrado",
         "descripcion": "Una figura emerge de la penumbra con las manos en alto. "
                        "'No dispares. Solo busco comida.'",
+        "puede_unirse": True,
         "opciones": {
+            "invitar": {
+                "texto":      "Invitarlo al refugio",
+                "moral_bonus": 12,
+                "une_al_refugio": True,
+            },
             "ayudar": {
-                "texto":    "Compartir recursos",
+                "texto":    "Compartir recursos y separar caminos",
                 "costo":    {"comida": 1},
-                "moral_bonus": 10,
+                "moral_bonus": 8,
                 "recompensa": {"info_zona": True},
             },
             "intercambio": {
@@ -140,6 +146,76 @@ EVENTOS = {
             "ignorar": {
                 "texto":    "Rechazarlo con frialdad",
                 "moral_costo": -8,
+            },
+        },
+    },
+    "superviviente_experto": {
+        "tipo":        "npc_amigable",
+        "titulo":      "Superviviente con habilidades",
+        "descripcion": "Una persona de aspecto curtido te saluda desde el otro lado "
+                       "de la calle. Tiene equipo y parece saber lo que hace.",
+        "puede_unirse": True,
+        "opciones": {
+            "invitar": {
+                "texto":      "Proponerle unirse al refugio",
+                "moral_bonus": 10,
+                "une_al_refugio": True,
+            },
+            "intercambio": {
+                "texto":    "Intercambiar recursos",
+                "moral_bonus": 4,
+                "recompensa": {"loot_pool": "medicina_media", "prob": 0.6},
+            },
+            "ignorar": {
+                "texto":    "Pasar de largo",
+                "moral_costo": -3,
+            },
+        },
+    },
+    "grupo_supervivientes": {
+        "tipo":        "npc_dilema",
+        "titulo":      "Pequeño grupo de supervivientes",
+        "descripcion": "Tres personas debilitadas te piden unirse a tu refugio. "
+                       "Tienen poco que ofrecer, pero son bocas que alimentar.",
+        "puede_unirse": True,
+        "opciones": {
+            "acoger_uno": {
+                "texto":      "Aceptar solo al más fuerte del grupo",
+                "moral_bonus": 8,
+                "une_al_refugio": True,
+            },
+            "recursos": {
+                "texto":    "Darles suministros y desechar compañía",
+                "costo":    {"comida": 2},
+                "moral_bonus": 5,
+            },
+            "ignorar": {
+                "texto":    "Negarte. No tienes suficiente para más",
+                "moral_costo": -12,
+            },
+        },
+    },
+    "superviviente_herido": {
+        "tipo":        "npc_dilema",
+        "titulo":      "Superviviente herido",
+        "descripcion": "Una persona herida, apoyada contra la pared. "
+                       "No puede moverse sola. Tiene fiebre alta.",
+        "puede_unirse": True,
+        "opciones": {
+            "curar_y_llevar": {
+                "texto":      "Curarla y llevarla al refugio",
+                "costo":      {"medicina": 1},
+                "moral_bonus": 20,
+                "une_al_refugio": True,
+            },
+            "curar_dejar": {
+                "texto":    "Curarla y dejarla aquí",
+                "costo":    {"medicina": 1},
+                "moral_bonus": 8,
+            },
+            "ignorar": {
+                "texto":    "Seguir tu camino",
+                "moral_costo": -15,
             },
         },
     },
@@ -157,12 +233,13 @@ EVENTOS = {
         "titulo":      "Niño perdido",
         "descripcion": "Un niño de no más de 8 años, sucio y asustado, "
                        "se aferra a una mochila roja.",
+        "puede_unirse": True,
         "opciones": {
             "llevar": {
                 "texto":    "Llevarlo al refugio",
                 "costo":    {"comida": 2, "agua": 1},
                 "moral_bonus": 25,
-                "loot":    ["mochila_roja"],
+                "une_al_refugio": True,
             },
             "recursos": {
                 "texto":    "Darle suministros y separar caminos",
@@ -184,6 +261,9 @@ EVENTOS = {
         "titulo":      "Piso inestable",
         "descripcion": "El suelo cruje bajo tus pies. "
                        "Tienes un segundo para decidir.",
+        "daño":        (10, 25),
+        "stat_check":  "destreza",
+        "dificultad":  5,
         "opciones": {
             "rapido": {
                 "texto":      "Cruzar rápido (Destreza)",
@@ -213,6 +293,9 @@ EVENTOS = {
         "titulo":      "Incendio",
         "descripcion": "Humo y llamas bloquean la salida principal. "
                        "Hay que buscar otra ruta.",
+        "daño":        (15, 30),
+        "stat_check":  "percepcion",
+        "dificultad":  4,
         "opciones": {
             "atravesar": {
                 "texto":    "Atravesar las llamas",
@@ -242,6 +325,22 @@ EVENTOS = {
         "percepcion_evitar":   5,
         "daño":               (8, 20),
         "condicion_aplica":   "herida_pierna",
+    },
+    "accidente_maquinaria": {
+        "tipo":        "peligro_ambiental",
+        "titulo":      "Accidente de maquinaria",
+        "descripcion": "Una cinta transportadora colapsa y te arrastra contra metal oxidado.",
+        "dificultad":  6,
+        "stat_check":  "destreza",
+        "daño":        (16, 34),
+        "condicion_aplica":     "brazo_inutilizado",
+        "condicion_prob":       0.35,
+        "condicion_clave":      "brazo_inutilizado",
+        "condicion_nombre":     "Brazo inutilizado",
+        "condicion_severidad":  3,
+        "condicion_duracion":   14,
+        "condicion_efectos":    {"stats_global": -1, "brazos_inutiles": 1},
+        "condicion_mensaje":    "  El impacto te deja un brazo inutilizado. Algunas armas ya no son viables.",
     },
 
     # ══════════════════════════════════════════════════════════

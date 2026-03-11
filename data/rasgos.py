@@ -234,6 +234,71 @@ RASGOS = {
         "incompatible_con": [],
     },
 
+    # ── RESISTENCIA TÉRMICA ──────────────────────────────────
+
+    "sangre_fria": {
+        "nombre":      "Sangre fría",
+        "icono":       "🧊",
+        "descripcion": "El frío te afecta menos. Tu cuerpo regula mejor en bajas temperaturas.",
+        "tipo":        "positivo",
+        "categoria":   "supervivencia",
+        "efectos": {
+            "resistencia_termica_mult": 0.7,
+        },
+        "adquisicion": {
+            "tipo":     "acumulacion",
+            "contador": "horas_bajo_cero",
+            "umbral":   48,
+        },
+        "incompatible_con": ["intolerancia_frio"],
+    },
+    "piel_curtida_sol": {
+        "nombre":      "Piel curtida al sol",
+        "icono":       "☀️",
+        "descripcion": "Años bajo el sol te dieron tolerancia al calor. Hipertermia menos probable.",
+        "tipo":        "positivo",
+        "categoria":   "supervivencia",
+        "efectos": {
+            "resistencia_termica_mult": 0.7,
+        },
+        "adquisicion": {
+            "tipo":     "acumulacion",
+            "contador": "horas_calor_extremo",
+            "umbral":   48,
+        },
+        "incompatible_con": ["intolerancia_calor"],
+    },
+    "intolerancia_frio": {
+        "nombre":      "Intolerancia al frío",
+        "icono":       "🥶",
+        "descripcion": "Tu cuerpo pierde calor rápido. La hipotermia acecha antes.",
+        "tipo":        "negativo",
+        "categoria":   "supervivencia",
+        "efectos": {
+            "resistencia_termica_mult": 1.4,
+        },
+        "adquisicion": {
+            "tipo":     "condicion",
+            "condicion": "hipotermia",
+        },
+        "incompatible_con": ["sangre_fria"],
+    },
+    "intolerancia_calor": {
+        "nombre":      "Intolerancia al calor",
+        "icono":       "🥵",
+        "descripcion": "Sudas en exceso y te deshidratas rápido con calor.",
+        "tipo":        "negativo",
+        "categoria":   "supervivencia",
+        "efectos": {
+            "resistencia_termica_mult": 1.4,
+        },
+        "adquisicion": {
+            "tipo":     "condicion",
+            "condicion": "hipertermia",
+        },
+        "incompatible_con": ["piel_curtida_sol"],
+    },
+
     # ══════════════════════════════════════════════════════════
     #  RASGOS POSITIVOS — SOCIAL
     # ══════════════════════════════════════════════════════════
@@ -449,21 +514,114 @@ RASGOS = {
         "incompatible_con": [],
     },
 
-    # ── EJEMPLO: cómo agregar un rasgo nuevo ──────────────────
-    # "vision_nocturna": {
-    #     "nombre":      "Visión Nocturna",
-    #     "icono":       "🌙",
-    #     "descripcion": "Adaptado a la oscuridad. Sin penalizaciones de noche.",
-    #     "tipo":        "positivo",
-    #     "categoria":   "supervivencia",
-    #     "efectos": {
-    #         "skills_en_noche": {"sigilo": 10},    # Categoría C (cuando exista)
-    #     },
-    #     "adquisicion": {
-    #         "tipo":     "acumulacion",
-    #         "contador": "expediciones_nocturnas",
-    #         "umbral":   10,
-    #     },
-    #     "incompatible_con": [],
-    # },
+    # ══════════════════════════════════════════════════════════
+    #  NUEVOS RASGOS — SUPERVIVENCIA AMBIENTAL Y RESILIENCIA
+    # ══════════════════════════════════════════════════════════
+
+    "piel_curtida": {
+        "nombre":      "Piel Curtida",
+        "icono":       "🛡️",
+        "descripcion": "Años de exposición endurecieron tu piel. Los efectos ambientales te afectan menos.",
+        "tipo":        "positivo",
+        "categoria":   "supervivencia",
+        "efectos": {
+            "resistencia_ambiental_mult": 0.70,     # Categoría B — nuevo efecto
+            "multiplicador_consumo_sed":   0.92,
+        },
+        "adquisicion": {
+            "tipo":    "acumulacion",
+            "contador": "expediciones_completadas",
+            "umbral":  20,
+        },
+        "incompatible_con": [],
+    },
+
+    "voluntad_de_hierro": {
+        "nombre":      "Voluntad de Hierro",
+        "icono":       "⚙️",
+        "descripcion": "El horror no te paraliza. Penalizaciones de moral y trauma reducidas.",
+        "tipo":        "positivo",
+        "categoria":   "mental",
+        "efectos": {
+            "penalizacion_presion_mult":   0.75,    # Categoría B
+            "xp_mult_global":              1.05,
+        },
+        "adquisicion": {
+            "tipo":    "acumulacion",
+            "contador": "veces_en_peligro_critico",
+            "umbral":  10,
+        },
+        "incompatible_con": [],
+    },
+
+    "metabolismo_rapido": {
+        "nombre":      "Metabolismo Rápido",
+        "icono":       "⚡",
+        "descripcion": "Las condiciones negativas duran menos. Tu cuerpo combate mejor las enfermedades.",
+        "tipo":        "positivo",
+        "categoria":   "medico",
+        "efectos": {
+            "recuperacion_condicion_mult": 1.30,    # Categoría B — nuevo
+            "multiplicador_medicina":      1.10,
+        },
+        "adquisicion": {
+            "tipo":   "acumulacion",
+            "stat":   "resistencia",
+            "umbral": 8,
+        },
+        "incompatible_con": [],
+    },
+
+    "temple_explorador": {
+        "nombre":      "Temple del Explorador",
+        "icono":       "🧊",
+        "descripcion": "La presión no te mueve. Fatiga y hambre suben más despacio en expedición.",
+        "tipo":        "positivo",
+        "categoria":   "supervivencia",
+        "efectos": {
+            "multiplicador_consumo_hambre": 0.88,   # Categoría B
+            "recuperacion_descanso_mult":   1.10,
+        },
+        "adquisicion": {
+            "tipo":   "acumulacion",
+            "skill":  "sigilo",
+            "umbral": 55,
+        },
+        "incompatible_con": [],
+    },
+
+    "pulmones_acero": {
+        "nombre":      "Pulmones de Acero",
+        "icono":       "💨",
+        "descripcion": "Polvo, gases, frío. Nada detiene tu respiración. Resistencia a climas peligrosos.",
+        "tipo":        "positivo",
+        "categoria":   "supervivencia",
+        "efectos": {
+            "resistencia_ambiental_mult": 0.60,     # Categoría B
+            "riesgo_neumonia_mult":       0.40,     # Categoría B — nuevo
+        },
+        "adquisicion": {
+            "tipo":    "acumulacion",
+            "contador": "expediciones_completadas",
+            "umbral":  30,
+        },
+        "incompatible_con": ["asma_cronica"],
+    },
+
+    "sombra": {
+        "nombre":      "Sombra",
+        "icono":       "🌑",
+        "descripcion": "La oscuridad es tu aliada. Tus habilidades de sigilo aumentan de noche.",
+        "tipo":        "positivo",
+        "categoria":   "combate",
+        "efectos": {
+            "skills_en_noche": {"sigilo": 15, "combate_cac": 5},  # Categoría C
+        },
+        "adquisicion": {
+            "tipo":    "acumulacion",
+            "contador": "expediciones_nocturnas",
+            "umbral":  10,
+        },
+        "incompatible_con": [],
+    },
 }

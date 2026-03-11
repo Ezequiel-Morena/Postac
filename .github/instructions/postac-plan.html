@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>POSTAC :: PLAN DE TRABAJO</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --phosphor: #00ff41;
+    --phosphor-dim: #00c930;
+    --phosphor-faint: #003a10;
+    --amber: #ffb000;
+    --red-alert: #ff3030;
+    --bg: #020a04;
+    --bg-card: #040e06;
+    --border: #0a3a14;
+    --glow: 0 0 8px #00ff4180, 0 0 20px #00ff4130;
+    --glow-strong: 0 0 12px #00ff41aa, 0 0 30px #00ff4160;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--phosphor);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    line-height: 1.7;
+    overflow-x: hidden;
+    cursor: crosshair;
+  }
+
+  /* CRT overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* Scanline sweep animation */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -100%;
+    left: 0;
+    right: 0;
+    height: 40%;
+    background: linear-gradient(transparent, rgba(0,255,65,0.03), transparent);
+    animation: scanline 8s linear infinite;
+    pointer-events: none;
+    z-index: 9998;
+  }
+
+  @keyframes scanline {
+    0% { top: -40%; }
+    100% { top: 110%; }
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  @keyframes flicker {
+    0%,100% { opacity: 1; }
+    92% { opacity: 1; }
+    93% { opacity: 0.8; }
+    94% { opacity: 1; }
+    96% { opacity: 0.9; }
+    97% { opacity: 1; }
+  }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes glitchText {
+    0%,100% { clip-path: none; transform: none; }
+    20% { clip-path: inset(10% 0 80% 0); transform: translate(-3px, 0); }
+    40% { clip-path: inset(70% 0 10% 0); transform: translate(3px, 0); }
+    60% { clip-path: none; transform: none; }
+  }
+
+  @keyframes pulse-border {
+    0%,100% { border-color: var(--border); }
+    50% { border-color: var(--phosphor-dim); }
+  }
+
+  /* ─── LAYOUT ─── */
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    padding: 60px 0 40px;
+    text-align: center;
+    animation: fadeInUp 0.8s ease both, flicker 12s infinite;
+    position: relative;
+  }
+
+  .header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--phosphor-dim);
+    margin-bottom: 32px;
+  }
+
+  .header-bar span {
+    display: inline-block;
+    width: 60px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--phosphor-dim));
+  }
+
+  .header-bar span:last-child {
+    background: linear-gradient(90deg, var(--phosphor-dim), transparent);
+  }
+
+  h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(48px, 8vw, 96px);
+    font-weight: 900;
+    letter-spacing: 16px;
+    color: var(--phosphor);
+    text-shadow: var(--glow-strong);
+    line-height: 1;
+    margin-bottom: 8px;
+    position: relative;
+  }
+
+  h1::before {
+    content: 'POSTAC';
+    position: absolute;
+    inset: 0;
+    color: var(--red-alert);
+    opacity: 0;
+    animation: glitchText 7s infinite;
+    clip-path: inset(45% 0 45% 0);
+  }
+
+  .subtitle {
+    font-family: 'VT323', monospace;
+    font-size: 22px;
+    letter-spacing: 6px;
+    color: var(--phosphor-dim);
+    margin-bottom: 4px;
+  }
+
+  .meta-line {
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--phosphor-faint);
+    color: #2a7a42;
+  }
+
+  .cursor {
+    display: inline-block;
+    width: 10px;
+    height: 18px;
+    background: var(--phosphor);
+    animation: blink 1s step-end infinite;
+    vertical-align: middle;
+    margin-left: 4px;
+  }
+
+  /* ─── DIVIDER ─── */
+  .divider {
+    border: none;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, var(--border) 20%, var(--phosphor-dim) 50%, var(--border) 80%, transparent 100%);
+    margin: 32px 0;
+    position: relative;
+  }
+
+  .divider::before {
+    content: '◆';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bg);
+    padding: 0 12px;
+    color: var(--phosphor-dim);
+    font-size: 10px;
+  }
+
+  /* ─── SECTIONS ─── */
+  section {
+    margin-bottom: 64px;
+    animation: fadeInUp 0.6s ease both;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .section-num {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    color: var(--phosphor-faint);
+    color: #1a5a2a;
+    letter-spacing: 2px;
+    flex-shrink: 0;
+  }
+
+  h2 {
+    font-family: 'Orbitron', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: var(--phosphor);
+    text-shadow: var(--glow);
+    text-transform: uppercase;
+  }
+
+  h3 {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 3px;
+    color: var(--amber);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    text-shadow: 0 0 8px rgba(255,176,0,0.5);
+  }
+
+  /* ─── VISION BLOCK ─── */
+  .vision-block {
+    border: 1px solid var(--border);
+    padding: 28px 32px;
+    background: var(--bg-card);
+    position: relative;
+    animation: pulse-border 4s ease infinite;
+  }
+
+  .vision-block::before {
+    content: '[ VISIÓN ]';
+    position: absolute;
+    top: -9px;
+    left: 24px;
+    background: var(--bg-card);
+    padding: 0 8px;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--phosphor-dim);
+  }
+
+  .vision-block p {
+    color: var(--phosphor-dim);
+    font-size: 15px;
+    line-height: 2;
+  }
+
+  .vision-block strong {
+    color: var(--phosphor);
+    text-shadow: var(--glow);
+  }
+
+  /* ─── PHASES GRID ─── */
+  .phases-grid {
+    display: grid;
+    gap: 20px;
+  }
+
+  .phase-card {
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    padding: 24px 28px;
+    position: relative;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    overflow: hidden;
+  }
+
+  .phase-card::after {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--phase-color, var(--phosphor));
+    box-shadow: 0 0 12px var(--phase-color, var(--phosphor));
+  }
+
+  .phase-card:hover {
+    border-color: var(--phase-color, var(--phosphor-dim));
+    box-shadow: 0 0 20px rgba(0,255,65,0.08);
+  }
+
+  .phase-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .phase-id {
+    font-family: 'Orbitron', monospace;
+    font-size: 28px;
+    font-weight: 900;
+    color: var(--phase-color, var(--phosphor));
+    text-shadow: 0 0 16px var(--phase-color, var(--phosphor));
+    line-height: 1;
+    opacity: 0.3;
+    margin-right: 8px;
+  }
+
+  .phase-title-block { flex: 1; }
+
+  .phase-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--phosphor);
+    margin-bottom: 4px;
+  }
+
+  .phase-subtitle {
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: #1a6a30;
+    text-transform: uppercase;
+  }
+
+  .phase-badge {
+    font-size: 10px;
+    letter-spacing: 2px;
+    border: 1px solid;
+    padding: 3px 10px;
+    border-color: var(--phase-color, var(--phosphor));
+    color: var(--phase-color, var(--phosphor));
+    text-transform: uppercase;
+    white-space: nowrap;
+    align-self: flex-start;
+  }
+
+  .phase-desc {
+    color: var(--phosphor-dim);
+    margin-bottom: 16px;
+    font-size: 13px;
+    line-height: 1.8;
+  }
+
+  .task-list {
+    list-style: none;
+    display: grid;
+    gap: 6px;
+  }
+
+  .task-list li {
+    font-size: 12px;
+    color: #2a8a48;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    line-height: 1.6;
+  }
+
+  .task-list li::before {
+    content: '▸';
+    color: var(--phase-color, var(--phosphor-dim));
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .task-list li.done {
+    color: #1a5a28;
+    text-decoration: line-through;
+    text-decoration-color: #0a3a18;
+  }
+
+  .task-list li.done::before { content: '✓'; color: var(--phosphor-dim); }
+
+  .task-list li.in-progress { color: var(--phosphor-dim); }
+  .task-list li.in-progress::before { content: '▶'; color: var(--amber); }
+
+  /* ─── PRINCIPLES GRID ─── */
+  .principles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+
+  .principle-card {
+    border: 1px solid var(--border);
+    padding: 20px 22px;
+    background: var(--bg-card);
+    transition: border-color 0.3s;
+  }
+
+  .principle-card:hover { border-color: var(--phosphor-dim); }
+
+  .principle-icon {
+    font-size: 24px;
+    margin-bottom: 12px;
+    display: block;
+    filter: drop-shadow(0 0 8px var(--phosphor));
+  }
+
+  .principle-name {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--phosphor);
+    margin-bottom: 8px;
+  }
+
+  .principle-desc {
+    font-size: 12px;
+    color: #2a7a42;
+    line-height: 1.7;
+  }
+
+  /* ─── TIMELINE ─── */
+  .timeline {
+    position: relative;
+    padding-left: 32px;
+  }
+
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 1px;
+    background: linear-gradient(to bottom, var(--phosphor), var(--border), transparent);
+  }
+
+  .timeline-item {
+    position: relative;
+    margin-bottom: 32px;
+    padding-left: 20px;
+  }
+
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -36px;
+    top: 6px;
+    width: 8px; height: 8px;
+    border: 1px solid var(--phosphor);
+    background: var(--bg);
+    box-shadow: var(--glow);
+    transform: rotate(45deg);
+  }
+
+  .timeline-item.active::before {
+    background: var(--phosphor);
+    box-shadow: var(--glow-strong);
+  }
+
+  .timeline-date {
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--amber);
+    margin-bottom: 4px;
+  }
+
+  .timeline-label {
+    font-size: 14px;
+    color: var(--phosphor);
+    margin-bottom: 4px;
+  }
+
+  .timeline-note {
+    font-size: 12px;
+    color: #1a6a30;
+  }
+
+  /* ─── STACK TABLE ─── */
+  .stack-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  .stack-table thead tr {
+    border-bottom: 1px solid var(--phosphor-dim);
+  }
+
+  .stack-table th {
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--phosphor-dim);
+    text-align: left;
+    padding: 8px 16px 12px;
+    text-transform: uppercase;
+  }
+
+  .stack-table td {
+    padding: 10px 16px;
+    color: #2a8a48;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  .stack-table tr:hover td { background: rgba(0,255,65,0.03); color: var(--phosphor-dim); }
+
+  .stack-table td:first-child { color: var(--phosphor); font-size: 13px; }
+  .stack-table td:nth-child(2) { color: var(--amber); font-size: 11px; }
+
+  /* ─── STATUS BAR ─── */
+  .status-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(2,10,4,0.95);
+    border-top: 1px solid var(--border);
+    padding: 8px 24px;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: #1a5a28;
+    backdrop-filter: blur(4px);
+    z-index: 100;
+  }
+
+  .status-dot {
+    width: 6px; height: 6px;
+    background: var(--phosphor);
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+    box-shadow: var(--glow);
+    animation: blink 2s ease infinite;
+  }
+
+  .status-item { display: flex; align-items: center; }
+
+  /* ─── FOOTER ─── */
+  footer {
+    text-align: center;
+    padding: 40px 0 80px;
+    color: #0a3a18;
+    font-size: 11px;
+    letter-spacing: 3px;
+  }
+
+  /* ─── SCROLL ANIMATIONS ─── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+  .reveal.visible { opacity: 1; transform: none; }
+
+  /* ─── PROGRESS BARS ─── */
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 10px;
+  }
+
+  .progress-label {
+    font-size: 11px;
+    color: var(--phosphor-dim);
+    width: 200px;
+    flex-shrink: 0;
+  }
+
+  .progress-track {
+    flex: 1;
+    height: 6px;
+    background: var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--phosphor-dim), var(--phosphor));
+    box-shadow: 0 0 8px var(--phosphor);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 1.2s cubic-bezier(0.4,0,0.2,1) 0.3s;
+  }
+
+  .progress-track.animated .progress-fill { transform: scaleX(1); }
+
+  .progress-pct {
+    font-size: 11px;
+    color: var(--phosphor);
+    width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* ─── INTERACTION PRINCIPLE ─── */
+  .interaction-box {
+    border: 1px solid var(--amber);
+    padding: 24px 28px;
+    background: rgba(255,176,0,0.03);
+    position: relative;
+  }
+
+  .interaction-box::before {
+    content: '[ PRINCIPIO DE INTERACCIÓN ]';
+    position: absolute;
+    top: -9px;
+    left: 24px;
+    background: var(--bg);
+    padding: 0 8px;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--amber);
+  }
+
+  .choice-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 16px;
+  }
+
+  .choice-card {
+    border: 1px solid var(--border);
+    padding: 16px;
+    text-align: center;
+    background: var(--bg-card);
+  }
+
+  .choice-num {
+    font-family: 'Orbitron', monospace;
+    font-size: 32px;
+    font-weight: 900;
+    color: var(--amber);
+    text-shadow: 0 0 16px rgba(255,176,0,0.5);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .choice-text { font-size: 12px; color: var(--phosphor-dim); line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<!-- ─── HEADER ─── -->
+<header>
+  <div class="container">
+    <div class="header-bar">
+      <span></span>
+      DOCUMENTO TÉCNICO · PLAN DE TRABAJO
+      <span></span>
+    </div>
+    <h1>POSTAC</h1>
+    <div class="subtitle">SIMULADOR DE SUPERVIVENCIA POST-APOCALÍPTICA</div>
+    <div class="meta-line">VERSIÓN EN DESARROLLO · TERMINAL-ONLY · ULTRARREALISMO<span class="cursor"></span></div>
+  </div>
+</header>
+
+<div class="container">
+
+  <hr class="divider">
+
+  <!-- ─── VISIÓN ─── -->
+  <section class="reveal" style="animation-delay:0.1s">
+    <div class="section-header">
+      <span class="section-num">00.</span>
+      <h2>Visión del Proyecto</h2>
+    </div>
+    <div class="vision-block">
+      <p>
+        Postac <strong>no es un videojuego</strong>. Es un simulador de vida en un mundo post-apocalíptico.
+        La diferencia fundamental: un juego tiene mecánicas y un final. Este simulador tiene
+        <strong>sistemas que interactúan</strong>, y el único final posible para un personaje es
+        la muerte — natural o violenta — exactamente como en la vida real.
+      </p>
+      <br>
+      <p>
+        La ambición a largo plazo es el <strong>ultrarrealismo</strong>: que cada entidad del mundo
+        (personas, animales, grupos, ecosistemas) se comporte como si fuera real, con sus propias
+        necesidades, ciclos, relaciones y deterioro. El simulador debe poder
+        <strong>crecer indefinidamente en capas de complejidad</strong> sin reescribirse.
+      </p>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ─── PRINCIPIO DE INTERACCIÓN ─── -->
+  <section class="reveal">
+    <div class="section-header">
+      <span class="section-num">01.</span>
+      <h2>Interacción del Jugador</h2>
+    </div>
+    <div class="interaction-box">
+      <p style="color:var(--phosphor-dim); font-size:13px; margin-bottom:8px;">
+        El jugador elige <strong style="color:var(--amber)">únicamente dos cosas</strong>.
+        Todo lo demás lo resuelve el simulador de forma autónoma.
+      </p>
+      <div class="choice-grid">
+        <div class="choice-card">
+          <div class="choice-num">01</div>
+          <div class="choice-text">¿Salir de expedición?<br><span style="color:#1a6a30">→ ¿A dónde?</span></div>
+        </div>
+        <div class="choice-card">
+          <div class="choice-num">02</div>
+          <div class="choice-text">¿Quedarse en el refugio?<br><span style="color:#1a6a30">→ Descansar / gestionar</span></div>
+        </div>
+      </div>
+      <p style="font-size:11px; color:#1a5a28; margin-top:16px; letter-spacing:2px;">
+        COMBATES · EVENTOS · CLIMA · SALUD · RELACIONES · NPCs → AUTÓNOMOS
+      </p>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ─── SISTEMAS IMPLEMENTADOS ─── -->
+  <section class="reveal">
+    <div class="section-header">
+      <span class="section-num">02.</span>
+      <h2>Estado Actual del Sistema</h2>
+    </div>
+
+    <h3>Progreso por módulo</h3>
+    <div id="progress-container">
+      <div class="progress-row">
+        <span class="progress-label">Motor de Personaje</span>
+        <div class="progress-track" data-pct="0.92">
+          <div class="progress-fill"></div>
+        </div>
+        <span class="progress-pct">92%</span>
+      </div>
+      <div class="progress-row">
+        <span class="progress-label">Motor de Combate</span>
+        <div class="progress-track" data-pct="0.86">
+          <div class="progress-fill"></div>
+        </div>
+        <span class="progress-pct">86%</span>
+      </div>
+      <div class="progress-row">
+        <span class="progress-label">Sistema de Eventos</span>
+        <div class="progress-track" data-pct="0.83">
+          <div class="progress-fill"></div>
+        </div>
+        <span class="progress-pct">83%</span>
+      </div>
+      <div class="progress-row">
+        <span class="progress-label">Generación Procedural</span>
+        <div class="progress-track" data-pct="0.82">
+          <div class="progress-fill"></div>
+        </div>
+        <span class="progress-pct">82%</span>
+      </div>
+      <div class="progress-row">
+        <span class="progress-label">Sistema de Guardado</span>
+        <div class="progress-track" data-pct="0.88">
+          <div class="progress-fill"></div>
+        </div>
+        <span class="progress-pct">88%</span>
+      </div>
+      <div class="progress-row">
+        <span class="progress-label">Exportación PNG / Bot Mode</span>
+        <div class="progress-track" data-pct="0.79">
+          <div class="progress-fill"></div>
+        </div>
+        <span class="progress-pct">79%</span>
+      </div>
+      <div class="progress-row">
+        <span class="progress-label">Sistema Climático</span>
+        <div class="progress-track" data-pct="0.71">
+          <div class="progress-fill"></div>
+        </div>
+        <span class="progress-pct">71%</span>
+      </div>
+      <div class="progress-row">
+        <span class="progress-label">Sistema de Relaciones</span>
+        <div class="progress-track" data-pct="0.42">
+          <div class="progress-fill"></div>
+        </div>
+        <span class="progress-pct">42%</span>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ─── FASES ─── -->
+  <section class="reveal">
+    <div class="section-header">
+      <span class="section-num">03.</span>
+      <h2>Fases de Desarrollo</h2>
+    </div>
+
+    <div class="phases-grid">
+
+      <!-- FASE 1 -->
+      <div class="phase-card" style="--phase-color: #00ff41;">
+        <div class="phase-header">
+          <span class="phase-id">F1</span>
+          <div class="phase-title-block">
+            <div class="phase-title">Núcleo del Simulador</div>
+            <div class="phase-subtitle">Base estructural · Motor principal</div>
+          </div>
+          <span class="phase-badge" style="border-color:#00ff41;color:#00ff41">EN CURSO</span>
+        </div>
+        <p class="phase-desc">Implementación de los sistemas base que sostienen todo el simulador. Motor de simulación autónomo, guardado robusto y modo bot.</p>
+        <ul class="task-list">
+          <li>Personaje con stats, skills, vitales, rasgos y condiciones</li>
+          <li>Motor de combate por turnos con heurística IA autónoma</li>
+          <li>Sistema de eventos narrativos con resolución autónoma</li>
+          <li>Generación procedural de zonas y loot</li>
+          <li>Guardado atómico con versionado y migraciones automáticas</li>
+          <li>Leaderboard de personajes caídos</li>
+          <li>Exportación de bitácora en imagen PNG estilo terminal</li>
+          <li>Modo bot para ejecución automatizada</li>
+        </ul>
+      </div>
+
+      <!-- FASE 2 -->
+      <div class="phase-card" style="--phase-color: #ffb000;">
+        <div class="phase-header">
+          <span class="phase-id">F2</span>
+          <div class="phase-title-block">
+            <div class="phase-title">Sistema Climático Dinámico</div>
+            <div class="phase-subtitle">Entorno vivo · Efectos persistentes</div>
+          </div>
+          <span class="phase-badge" style="border-color:#ffb000;color:#ffb000">EN CURSO</span>
+        </div>
+        <p class="phase-desc">El mundo deja de ser un escenario estático. El clima afecta zonas, loot, salud y relaciones. Primera capa de interacción sistémica.</p>
+        <ul class="task-list">
+          <li>Estaciones, temperatura y ciclos de lluvia ácida</li>
+          <li>Tormentas de radiación y eventos meteorológicos extremos</li>
+          <li>Contaminación acumulativa por zona</li>
+          <li>Escasez de recursos regional dinámica</li>
+          <li>Modificadores de loot según condiciones climáticas</li>
+          <li>Efectos de exposición en los vitales del personaje</li>
+        </ul>
+      </div>
+
+      <!-- FASE 3 -->
+      <div class="phase-card" style="--phase-color: #00aaff;">
+        <div class="phase-header">
+          <span class="phase-id">F3</span>
+          <div class="phase-title-block">
+            <div class="phase-title">Enfermedades y Discapacidades</div>
+            <div class="phase-subtitle">Cuerpo real · Consecuencias permanentes</div>
+          </div>
+          <span class="phase-badge" style="border-color:#00aaff;color:#00aaff">EN CURSO</span>
+        </div>
+        <p class="phase-desc">El cuerpo tiene memoria. Las lesiones dejan cicatrices. Las enfermedades crónicas definen quién puede ser tu personaje desde el inicio o con el tiempo.</p>
+        <ul class="task-list">
+          <li>Enfermedades crónicas preexistentes al inicio</li>
+          <li>Adquisición de enfermedades en campo abierto</li>
+          <li>Discapacidades permanentes por trauma o lesión</li>
+          <li>Efectos acumulativos sobre stats y habilidades</li>
+          <li>Sistema de tratamientos con éxito variable</li>
+          <li>Datos parametrizados con fuentes médicas reales (MeSH)</li>
+        </ul>
+      </div>
+
+      <!-- FASE 4 -->
+      <div class="phase-card" style="--phase-color: #ff6b35;">
+        <div class="phase-header">
+          <span class="phase-id">F4</span>
+          <div class="phase-title-block">
+            <div class="phase-title">Sistema de Relaciones</div>
+            <div class="phase-subtitle">NPCs vivos · Vínculos reales</div>
+          </div>
+          <span class="phase-badge" style="border-color:#ff6b35;color:#ff6b35">EN CURSO</span>
+        </div>
+        <p class="phase-desc">Los NPCs dejan de ser tablas de stats. Tienen hambre, miedo, motivaciones propias. Sus relaciones contigo y entre ellos evolucionan con cada tick.</p>
+        <ul class="task-list">
+          <li>Vínculos con NPCs (confianza, lealtad, miedo, amor)</li>
+          <li>Eventos propios del refugio durante expediciones</li>
+          <li>Disputas, alianzas y dinámicas internas autónomas</li>
+          <li>NPCs que buscan recursos por cuenta propia</li>
+          <li>Reacciones emocionales a pérdidas y eventos</li>
+        </ul>
+      </div>
+
+      <!-- FASE 5 -->
+      <div class="phase-card" style="--phase-color: #ff3090;">
+        <div class="phase-header">
+          <span class="phase-id">F5</span>
+          <div class="phase-title-block">
+            <div class="phase-title">Núcleo Familiar</div>
+            <div class="phase-subtitle">Pareja · Hijos · Animales</div>
+          </div>
+          <span class="phase-badge" style="border-color:#ff3090;color:#ff3090">PENDIENTE</span>
+        </div>
+        <p class="phase-desc">La supervivencia tiene un por qué. Puedes encontrar pareja, tener o adoptar hijos, o criar animales. Cada uno con su propia simulación de necesidades.</p>
+        <ul class="task-list">
+          <li>Sistema de pareja con vínculos profundos</li>
+          <li>Hijos con ciclo de vida propio (nacimiento → adultez)</li>
+          <li>Animales domésticos con comportamiento simulado</li>
+          <li>Necesidades autónomas de cada miembro</li>
+          <li>Impacto emocional y estratégico en decisiones</li>
+        </ul>
+      </div>
+
+      <!-- FASE 6 -->
+      <div class="phase-card" style="--phase-color: #aa55ff;">
+        <div class="phase-header">
+          <span class="phase-id">F6</span>
+          <div class="phase-title-block">
+            <div class="phase-title">Ciclo de Vida y Legado</div>
+            <div class="phase-subtitle">Envejecimiento · Muerte · Herencia</div>
+          </div>
+          <span class="phase-badge" style="border-color:#aa55ff;color:#aa55ff">PENDIENTE</span>
+        </div>
+        <p class="phase-desc">La vejez es un destino tan válido como la muerte en combate. El tiempo pasa de verdad, con efectos físicos y cognitivos. Y lo que dejás atrás, importa.</p>
+        <ul class="task-list">
+          <li>Envejecimiento real con efectos en stats y habilidades</li>
+          <li>Deterioro cognitivo y físico progresivo</li>
+          <li>Muerte natural como destino válido</li>
+          <li>Sistema de legado: conexión entre partidas</li>
+          <li>El leaderboard cuenta una historia, no solo puntajes</li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ─── MODELO DE TIEMPO ─── -->
+  <section class="reveal">
+    <div class="section-header">
+      <span class="section-num">04.</span>
+      <h2>Modelo de Tiempo — Tick Global</h2>
+    </div>
+    <div class="vision-block">
+      <p>
+        El tiempo avanza por <strong>decisiones del jugador</strong>, no en tiempo real.
+        Cada decisión (expedición o descanso) dispara un <strong>tick global</strong> que
+        actualiza todos los sistemas simultáneamente.
+      </p>
+      <br>
+      <p>
+        El refugio es <strong>zona segura pero no zona muerta</strong>: los eventos que ocurren
+        allí durante una expedición son menos graves que los de campo abierto, pero existen.
+        Pueden ser positivos (un NPC consiguió comida) o negativos (alguien enfermó).
+      </p>
+      <br>
+      <p>
+        Este modelo permite que el <strong>bot seleccione opciones</strong> y la simulación
+        corra completamente sola, con todos los sistemas avanzando de forma autónoma tick a tick.
+      </p>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ─── PRINCIPIOS DE DISEÑO ─── -->
+  <section class="reveal">
+    <div class="section-header">
+      <span class="section-num">05.</span>
+      <h2>Principios de Diseño</h2>
+    </div>
+    <div class="principles-grid">
+      <div class="principle-card">
+        <span class="principle-icon">⬡</span>
+        <div class="principle-name">Entidades Reales</div>
+        <p class="principle-desc">Un NPC no es una tabla de stats. Tiene hambre, miedo, relaciones, motivaciones. Cada entidad podría tener su propia simulación interna.</p>
+      </div>
+      <div class="principle-card">
+        <span class="principle-icon">⟲</span>
+        <div class="principle-name">Sistemas que Interactúan</div>
+        <p class="principle-desc">El clima afecta zonas → zonas afectan loot → loot afecta salud → salud afecta relaciones. Diseño emergente desde sistemas simples.</p>
+      </div>
+      <div class="principle-card">
+        <span class="principle-icon">◈</span>
+        <div class="principle-name">Data-Driven</div>
+        <p class="principle-desc">Agregar zonas, enfermedades, eventos o rasgos editando archivos de datos, sin tocar la lógica del motor. El motor interpreta; los datos no contienen lógica.</p>
+      </div>
+      <div class="principle-card">
+        <span class="principle-icon">▲</span>
+        <div class="principle-name">Capas, No Rewrites</div>
+        <p class="principle-desc">Cada sistema nuevo puede activarse o desactivarse sin romper los demás. El simulador crece en profundidad, nunca se reescribe desde cero.</p>
+      </div>
+      <div class="principle-card">
+        <span class="principle-icon">▸</span>
+        <div class="principle-name">Terminal Primero</div>
+        <p class="principle-desc">Terminal únicamente, para siempre. El modo bot es un ciudadano de primera clase. Toda feature funciona tanto con input humano como de forma completamente autónoma.</p>
+      </div>
+      <div class="principle-card">
+        <span class="principle-icon">◻</span>
+        <div class="principle-name">Mundo Regenerado</div>
+        <p class="principle-desc">El mundo no persiste entre personajes. Cada muerte implica un mundo nuevo. Solo el leaderboard de caídos es registro permanente entre partidas.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ─── STACK TÉCNICO ─── -->
+  <section class="reveal">
+    <div class="section-header">
+      <span class="section-num">06.</span>
+      <h2>Stack Técnico</h2>
+    </div>
+    <table class="stack-table">
+      <thead>
+        <tr>
+          <th>Librería / Tecnología</th>
+          <th>Estado</th>
+          <th>Función en el Proyecto</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Python 3.x</td>
+          <td>ACTIVO</td>
+          <td>Lenguaje base del simulador completo</td>
+        </tr>
+        <tr>
+          <td>Pillow (PIL)</td>
+          <td>ACTIVO</td>
+          <td>Exportación de bitácora como imagen PNG estilo terminal</td>
+        </tr>
+        <tr>
+          <td>rich</td>
+          <td>RECOMENDADO</td>
+          <td>Reemplaza códigos ANSI manuales · tablas · colores en terminal</td>
+        </tr>
+        <tr>
+          <td>typer</td>
+          <td>RECOMENDADO</td>
+          <td>Manejo profesional de argumentos CLI · --help automático</td>
+        </tr>
+        <tr>
+          <td>pydantic</td>
+          <td>RECOMENDADO</td>
+          <td>Validación automática de datos al cargarlos desde data/</td>
+        </tr>
+        <tr>
+          <td>numpy</td>
+          <td>RECOMENDADO</td>
+          <td>Distribuciones de probabilidad realistas para clima y salud</td>
+        </tr>
+        <tr>
+          <td>pytest</td>
+          <td>RECOMENDADO</td>
+          <td>Testing unitario de lógica de simulación y resolvers</td>
+        </tr>
+        <tr>
+          <td>tinydb / sqlite3</td>
+          <td>FUTURO</td>
+          <td>Persistencia escalable cuando el JSON se quede pequeño</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ─── TIMELINE ─── -->
+  <section class="reveal">
+    <div class="section-header">
+      <span class="section-num">07.</span>
+      <h2>Hitos del Roadmap</h2>
+    </div>
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="timeline-date">FASE 1</div>
+        <div class="timeline-label">Núcleo funcional del simulador</div>
+        <div class="timeline-note">Personaje · Combate · Eventos · Loot · Guardado · Bot mode</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-date">FASE 2</div>
+        <div class="timeline-label">Sistema climático dinámico</div>
+        <div class="timeline-note">Primera capa de interacción sistémica · El entorno cobra vida</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-date">FASE 3</div>
+        <div class="timeline-label">Enfermedades y discapacidades</div>
+        <div class="timeline-note">Cuerpo con memoria · Consecuencias permanentes · Datos médicos reales</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-date">FASE 4–5</div>
+        <div class="timeline-label">Sistema de relaciones + Núcleo familiar</div>
+        <div class="timeline-note">NPCs con agencia · Razones para sobrevivir · Refugio vivo</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-date">FASE 6</div>
+        <div class="timeline-label">Ciclo de vida completo y legado</div>
+        <div class="timeline-note">Envejecimiento real · Muerte natural · Historia entre partidas</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-date">VISIÓN FINAL</div>
+        <div class="timeline-label">Ultrarrealismo sistémico</div>
+        <div class="timeline-note">Grupos · Facciones · Ecosistemas · Simulación autónoma completa</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ─── STATUS BAR ─── -->
+<div class="status-bar">
+  <div class="status-item">
+    <span class="status-dot"></span>
+    POSTAC SIM v0.x
+  </div>
+  <div class="status-item">MODO: TERMINAL</div>
+  <div class="status-item">ESTADO: DESARROLLO ACTIVO</div>
+  <div class="status-item" id="clock"></div>
+</div>
+
+<!-- ─── FOOTER ─── -->
+<footer>
+  <div class="container">
+    <p>POSTAC · POST-APOCALYPTIC SURVIVAL SIMULATOR · TERMINAL ONLY FOREVER</p>
+    <br>
+    <p>NO ES UN JUEGO · ES UNA SIMULACIÓN</p>
+  </div>
+</footer>
+
+<script>
+  // ─── CLOCK ───
+  function updateClock() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2,'0');
+    const m = String(now.getMinutes()).padStart(2,'0');
+    const s = String(now.getSeconds()).padStart(2,'0');
+    document.getElementById('clock').textContent = `SYS_TIME: ${h}:${m}:${s}`;
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // ─── SCROLL REVEAL ───
+  const reveals = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((e, i) => {
+      if (e.isIntersecting) {
+        setTimeout(() => e.target.classList.add('visible'), i * 60);
+        observer.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.1 });
+  reveals.forEach(r => observer.observe(r));
+
+  // ─── PROGRESS BAR ANIMATIONS ───
+  const progressObs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const tracks = e.target.querySelectorAll('.progress-track');
+        tracks.forEach(track => {
+          const pct = parseFloat(track.dataset.pct);
+          const fill = track.querySelector('.progress-fill');
+          fill.style.width = `${pct * 100}%`;
+          track.classList.add('animated');
+        });
+        progressObs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.3 });
+
+  const pc = document.getElementById('progress-container');
+  if (pc) progressObs.observe(pc);
+
+  // ─── TYPING EFFECT ON SUBTITLE ───
+  const metaLines = document.querySelectorAll('.meta-line');
+  metaLines.forEach(el => {
+    const text = el.textContent.replace(/\s*$/, '');
+    const cursor = el.querySelector('.cursor');
+    el.textContent = '';
+    if (cursor) el.appendChild(cursor);
+    let i = 0;
+    function type() {
+      if (i < text.length) {
+        el.insertBefore(document.createTextNode(text[i]), cursor || null);
+        i++;
+        setTimeout(type, 40);
+      }
+    }
+    setTimeout(type, 1200);
+  });
+</script>
+</body>
+</html>

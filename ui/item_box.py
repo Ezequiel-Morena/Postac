@@ -41,7 +41,8 @@ _ICONOS_TIPO: dict[str, str] = {
     "arma_fuego": "🔫", "arma_cortante": "🔪", "arma_contundente": "🪓",
     "arma_arrojadiza": "🎯", "armadura": "🛡", "casco": "⛑",
     "municion": "🔋", "herramienta": "🔧", "equipo": "🎒",
-    "equipo_especial": "⚙", "material": "📦", "libro": "📚", "misc": "🔹",
+    "equipo_especial": "⚙", "material": "📦", "libro": "📚",
+    "vestimenta": "👔", "misc": "🔹",
 }
 
 TIPOS_CONSUMIBLES: frozenset[str] = frozenset({
@@ -52,7 +53,7 @@ _ORDEN_TIPOS: list[str] = [
     "comida", "agua", "medicina", "arma_fuego", "arma_cortante",
     "arma_contundente", "arma_arrojadiza", "armadura", "casco",
     "municion", "herramienta", "equipo", "equipo_especial",
-    "material", "libro", "misc",
+    "vestimenta", "material", "libro", "misc",
 ]
 
 

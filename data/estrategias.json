@@ -1,0 +1,1100 @@
+{
+  "version": 0,
+  "global": {},
+  "archetypes": {
+    "bombero": {
+      "_descripcion": "Archetype derivado automáticamente: bombero",
+      "pesos_zonas": {
+        "hospital": 1.2334,
+        "supermercado": 1.2176,
+        "comisaria": 1.1386,
+        "farmacia": 1.2273,
+        "casa_abandonada": 1.2772,
+        "fabrica": 1.2156,
+        "biblioteca": 1.2239,
+        "laboratorio": 1.3663,
+        "gasolinera": 1.0457,
+        "estadio": 1.0832,
+        "puerto_seco": 1.369,
+        "reserva_forestal": 1.2432
+      },
+      "umbral_descanso_fatiga": 70,
+      "umbral_descanso_hambre": 70,
+      "umbral_descanso_sed": 73,
+      "umbral_descanso_salud_pct": 0.35,
+      "max_expediciones_seguidas": 3,
+      "prioridad_inventario": [
+        "agua",
+        "comida",
+        "medicina"
+      ],
+      "habilidad_dominante": "bombero",
+      "estadisticas": {
+        "runs": 20,
+        "dias_promedio": 1.25,
+        "mejor_racha": 2,
+        "tasa_muerte_violenta": 0.0182,
+        "tasa_muerte_inanicion": 0.9431,
+        "expediciones_por_dia": 1.233,
+        "zona_mas_exitosa": "puerto_seco",
+        "zona_mas_letal": "fabrica"
+      }
+    },
+    "cazador": {
+      "_descripcion": "Archetype derivado automáticamente: cazador",
+      "pesos_zonas": {
+        "hospital": 1.1386,
+        "supermercado": 1.0186,
+        "comisaria": 1.1386,
+        "farmacia": 1.0831,
+        "casa_abandonada": 1.1109,
+        "fabrica": 1.1386,
+        "biblioteca": 1.0277,
+        "laboratorio": 1.0439,
+        "gasolinera": 1.1663,
+        "estadio": 1.0,
+        "puerto_seco": 1.1386,
+        "reserva_forestal": 1.0277
+      },
+      "umbral_descanso_fatiga": 70,
+      "umbral_descanso_hambre": 70,
+      "umbral_descanso_sed": 73,
+      "umbral_descanso_salud_pct": 0.35,
+      "max_expediciones_seguidas": 3,
+      "prioridad_inventario": [
+        "agua",
+        "comida",
+        "medicina"
+      ],
+      "habilidad_dominante": "cazador",
+      "estadisticas": {
+        "runs": 10,
+        "dias_promedio": 0.9,
+        "mejor_racha": 2,
+        "tasa_muerte_violenta": 0.0481,
+        "tasa_muerte_inanicion": 0.755,
+        "expediciones_por_dia": 1.3875,
+        "zona_mas_exitosa": "comisaria",
+        "zona_mas_letal": "supermercado"
+      }
+    },
+    "mecanico": {
+      "_descripcion": "Archetype derivado automáticamente: mecanico",
+      "pesos_zonas": {
+        "hospital": 1.3646,
+        "supermercado": 1.1707,
+        "comisaria": 1.5148,
+        "farmacia": 1.2537,
+        "casa_abandonada": 1.4988,
+        "fabrica": 1.0688,
+        "biblioteca": 1.3296,
+        "laboratorio": 1.121,
+        "gasolinera": 0.9547,
+        "estadio": 0.9731,
+        "puerto_seco": 0.9238,
+        "reserva_forestal": 1.1364
+      },
+      "umbral_descanso_fatiga": 70,
+      "umbral_descanso_hambre": 70,
+      "umbral_descanso_sed": 73,
+      "umbral_descanso_salud_pct": 0.35,
+      "max_expediciones_seguidas": 3,
+      "prioridad_inventario": [
+        "agua",
+        "comida",
+        "medicina"
+      ],
+      "habilidad_dominante": "mecanico",
+      "estadisticas": {
+        "runs": 18,
+        "dias_promedio": 1.31,
+        "mejor_racha": 2,
+        "tasa_muerte_violenta": 0.173,
+        "tasa_muerte_inanicion": 0.7734,
+        "expediciones_por_dia": 2.1636,
+        "zona_mas_exitosa": "casa_abandonada",
+        "zona_mas_letal": "puerto_seco"
+      }
+    },
+    "docente": {
+      "_descripcion": "Archetype derivado automáticamente: docente",
+      "pesos_zonas": {
+        "hospital": 1.2931,
+        "supermercado": 1.1318,
+        "comisaria": 1.2654,
+        "farmacia": 1.1523,
+        "casa_abandonada": 1.0277,
+        "fabrica": 1.1573,
+        "biblioteca": 1.0277,
+        "laboratorio": 1.1109,
+        "gasolinera": 1.194,
+        "estadio": 0.8709,
+        "puerto_seco": 1.099,
+        "reserva_forestal": 1.081
+      },
+      "umbral_descanso_fatiga": 70,
+      "umbral_descanso_hambre": 70,
+      "umbral_descanso_sed": 73,
+      "umbral_descanso_salud_pct": 0.35,
+      "max_expediciones_seguidas": 3,
+      "prioridad_inventario": [
+        "agua",
+        "comida",
+        "medicina"
+      ],
+      "habilidad_dominante": "docente",
+      "estadisticas": {
+        "runs": 12,
+        "dias_promedio": 1.1,
+        "mejor_racha": 2,
+        "tasa_muerte_violenta": 0.1051,
+        "tasa_muerte_inanicion": 0.7526,
+        "expediciones_por_dia": 1.7155,
+        "zona_mas_exitosa": "gasolinera",
+        "zona_mas_letal": "estadio"
+      }
+    },
+    "medico": {
+      "_descripcion": "Archetype derivado automáticamente: medico",
+      "pesos_zonas": {
+        "hospital": 1.2313,
+        "supermercado": 1.1449,
+        "comisaria": 1.3997,
+        "farmacia": 1.1993,
+        "casa_abandonada": 1.0747,
+        "fabrica": 1.0201,
+        "biblioteca": 1.0742,
+        "laboratorio": 1.0502,
+        "gasolinera": 1.0569,
+        "estadio": 1.1706,
+        "puerto_seco": 1.1072,
+        "reserva_forestal": 1.2697
+      },
+      "umbral_descanso_fatiga": 70,
+      "umbral_descanso_hambre": 70,
+      "umbral_descanso_sed": 73,
+      "umbral_descanso_salud_pct": 0.35,
+      "max_expediciones_seguidas": 3,
+      "prioridad_inventario": [
+        "agua",
+        "comida",
+        "medicina"
+      ],
+      "habilidad_dominante": "medico",
+      "estadisticas": {
+        "runs": 13,
+        "dias_promedio": 1.18,
+        "mejor_racha": 2,
+        "tasa_muerte_violenta": 0.1623,
+        "tasa_muerte_inanicion": 0.7168,
+        "expediciones_por_dia": 1.7534,
+        "zona_mas_exitosa": "reserva_forestal",
+        "zona_mas_letal": "estadio"
+      }
+    },
+    "ladron": {
+      "_descripcion": "Archetype derivado automáticamente: ladron",
+      "pesos_zonas": {
+        "hospital": 1.5632,
+        "supermercado": 1.7847,
+        "comisaria": 1.4049,
+        "farmacia": 1.4845,
+        "casa_abandonada": 1.4493,
+        "fabrica": 1.3689,
+        "biblioteca": 1.6726,
+        "laboratorio": 1.2552,
+        "gasolinera": 1.3272,
+        "estadio": 1.3785,
+        "puerto_seco": 1.256,
+        "reserva_forestal": 1.3965
+      },
+      "umbral_descanso_fatiga": 70,
+      "umbral_descanso_hambre": 70,
+      "umbral_descanso_sed": 73,
+      "umbral_descanso_salud_pct": 0.35,
+      "max_expediciones_seguidas": 3,
+      "prioridad_inventario": [
+        "agua",
+        "comida",
+        "medicina"
+      ],
+      "habilidad_dominante": "ladron",
+      "estadisticas": {
+        "runs": 19,
+        "dias_promedio": 1.5,
+        "mejor_racha": 3,
+        "tasa_muerte_violenta": 0.0,
+        "tasa_muerte_inanicion": 0.9544,
+        "expediciones_por_dia": 1.5315,
+        "zona_mas_exitosa": "biblioteca",
+        "zona_mas_letal": ""
+      }
+    },
+    "electricista": {
+      "_descripcion": "Archetype derivado automáticamente: electricista",
+      "pesos_zonas": {
+        "hospital": 1.0,
+        "supermercado": 1.0277,
+        "comisaria": 1.0554,
+        "farmacia": 1.0993,
+        "casa_abandonada": 1.0831,
+        "fabrica": 1.0554,
+        "biblioteca": 1.0554,
+        "laboratorio": 1.0832,
+        "gasolinera": 1.0993,
+        "estadio": 1.1109,
+        "puerto_seco": 1.0,
+        "reserva_forestal": 1.0395
+      },
+      "umbral_descanso_fatiga": 70,
+      "umbral_descanso_hambre": 70,
+      "umbral_descanso_sed": 73,
+      "umbral_descanso_salud_pct": 0.35,
+      "max_expediciones_seguidas": 3,
+      "prioridad_inventario": [
+        "agua",
+        "comida",
+        "medicina"
+      ],
+      "habilidad_dominante": "electricista",
+      "estadisticas": {
+        "runs": 8,
+        "dias_promedio": 0.78,
+        "mejor_racha": 2,
+        "tasa_muerte_violenta": 0.0666,
+        "tasa_muerte_inanicion": 0.6609,
+        "expediciones_por_dia": 1.7456,
+        "zona_mas_exitosa": "reserva_forestal",
+        "zona_mas_letal": "reserva_forestal"
+      }
+    },
+    "militar": {
+      "_descripcion": "Archetype derivado automáticamente: militar",
+      "pesos_zonas": {
+        "hospital": 1.2741,
+        "supermercado": 1.2339,
+        "comisaria": 0.9764,
+        "farmacia": 0.9962,
+        "casa_abandonada": 1.1938,
+        "fabrica": 1.1824,
+        "biblioteca": 1.1875,
+        "laboratorio": 1.0782,
+        "gasolinera": 1.0471,
+        "estadio": 1.1889,
+        "puerto_seco": 1.1642,
+        "reserva_forestal": 1.28
+      },
+      "umbral_descanso_fatiga": 70,
+      "umbral_descanso_hambre": 70,
+      "umbral_descanso_sed": 73,
+      "umbral_descanso_salud_pct": 0.35,
+      "max_expediciones_seguidas": 3,
+      "prioridad_inventario": [
+        "agua",
+        "comida",
+        "medicina"
+      ],
+      "habilidad_dominante": "militar",
+      "estadisticas": {
+        "runs": 19,
+        "dias_promedio": 1.26,
+        "mejor_racha": 2,
+        "tasa_muerte_violenta": 0.1718,
+        "tasa_muerte_inanicion": 0.7826,
+        "expediciones_por_dia": 1.6213,
+        "zona_mas_exitosa": "reserva_forestal",
+        "zona_mas_letal": "comisaria"
+      }
+    },
+    "periodista": {
+      "_descripcion": "Archetype derivado automáticamente: periodista",
+      "pesos_zonas": {
+        "hospital": 1.4347,
+        "supermercado": 1.227,
+        "comisaria": 1.2151,
+        "farmacia": 1.5489,
+        "casa_abandonada": 1.4344,
+        "fabrica": 1.2511,
+        "biblioteca": 1.559,
+        "laboratorio": 1.194,
+        "gasolinera": 1.4638,
+        "estadio": 1.2624,
+        "puerto_seco": 1.3851,
+        "reserva_forestal": 1.2653
+      },
+      "umbral_descanso_fatiga": 70,
+      "umbral_descanso_hambre": 70,
+      "umbral_descanso_sed": 73,
+      "umbral_descanso_salud_pct": 0.35,
+      "max_expediciones_seguidas": 3,
+      "prioridad_inventario": [
+        "agua",
+        "comida",
+        "medicina"
+      ],
+      "habilidad_dominante": "periodista",
+      "estadisticas": {
+        "runs": 15,
+        "dias_promedio": 1.58,
+        "mejor_racha": 3,
+        "tasa_muerte_violenta": 0.2769,
+        "tasa_muerte_inanicion": 0.6359,
+        "expediciones_por_dia": 2.2865,
+        "zona_mas_exitosa": "farmacia",
+        "zona_mas_letal": "casa_abandonada"
+      }
+    },
+    "cocinero": {
+      "_descripcion": "Archetype derivado automáticamente: cocinero",
+      "pesos_zonas": {
+        "hospital": 1.3881,
+        "supermercado": 1.3354,
+        "comisaria": 1.2493,
+        "farmacia": 1.4233,
+        "casa_abandonada": 1.329,
+        "fabrica": 1.2692,
+        "biblioteca": 1.5769,
+        "laboratorio": 1.1468,
+        "gasolinera": 1.5101,
+        "estadio": 1.4096,
+        "puerto_seco": 1.3183,
+        "reserva_forestal": 1.3445
+      },
+      "umbral_descanso_fatiga": 70,
+      "umbral_descanso_hambre": 70,
+      "umbral_descanso_sed": 73,
+      "umbral_descanso_salud_pct": 0.35,
+      "max_expediciones_seguidas": 3,
+      "prioridad_inventario": [
+        "agua",
+        "comida",
+        "medicina"
+      ],
+      "habilidad_dominante": "cocinero",
+      "estadisticas": {
+        "runs": 18,
+        "dias_promedio": 1.69,
+        "mejor_racha": 3,
+        "tasa_muerte_violenta": 0.0,
+        "tasa_muerte_inanicion": 0.9463,
+        "expediciones_por_dia": 1.8664,
+        "zona_mas_exitosa": "supermercado",
+        "zona_mas_letal": ""
+      }
+    },
+    "granjero": {
+      "_descripcion": "Archetype derivado automáticamente: granjero",
+      "pesos_zonas": {
+        "hospital": 1.3848,
+        "supermercado": 1.0832,
+        "comisaria": 1.0,
+        "farmacia": 1.2428,
+        "casa_abandonada": 1.3514,
+        "fabrica": 1.332,
+        "biblioteca": 1.4043,
+        "laboratorio": 1.1183,
+        "gasolinera": 1.1664,
+        "estadio": 1.2671,
+        "puerto_seco": 1.1727,
+        "reserva_forestal": 1.2257
+      },
+      "umbral_descanso_fatiga": 70,
+      "umbral_descanso_hambre": 70,
+      "umbral_descanso_sed": 73,
+      "umbral_descanso_salud_pct": 0.35,
+      "max_expediciones_seguidas": 3,
+      "prioridad_inventario": [
+        "agua",
+        "comida",
+        "medicina"
+      ],
+      "habilidad_dominante": "granjero",
+      "estadisticas": {
+        "runs": 11,
+        "dias_promedio": 1.41,
+        "mejor_racha": 2,
+        "tasa_muerte_violenta": 0.0705,
+        "tasa_muerte_inanicion": 0.7623,
+        "expediciones_por_dia": 1.5464,
+        "zona_mas_exitosa": "puerto_seco",
+        "zona_mas_letal": "puerto_seco"
+      }
+    },
+    "cientifico": {
+      "_descripcion": "Archetype derivado automáticamente: cientifico",
+      "pesos_zonas": {
+        "hospital": 1.1076,
+        "supermercado": 1.0439,
+        "comisaria": 1.1102,
+        "farmacia": 0.9993,
+        "casa_abandonada": 1.0,
+        "fabrica": 1.1109,
+        "biblioteca": 1.1069,
+        "laboratorio": 1.0554,
+        "gasolinera": 0.88,
+        "estadio": 1.2185,
+        "puerto_seco": 1.0832,
+        "reserva_forestal": 1.1109
+      },
+      "umbral_descanso_fatiga": 70,
+      "umbral_descanso_hambre": 70,
+      "umbral_descanso_sed": 73,
+      "umbral_descanso_salud_pct": 0.35,
+      "max_expediciones_seguidas": 3,
+      "prioridad_inventario": [
+        "agua",
+        "comida",
+        "medicina"
+      ],
+      "habilidad_dominante": "cientifico",
+      "estadisticas": {
+        "runs": 9,
+        "dias_promedio": 1.03,
+        "mejor_racha": 2,
+        "tasa_muerte_violenta": 0.0566,
+        "tasa_muerte_inanicion": 0.7118,
+        "expediciones_por_dia": 1.2144,
+        "zona_mas_exitosa": "biblioteca",
+        "zona_mas_letal": "gasolinera"
+      }
+    },
+    "paramedico": {
+      "_descripcion": "Archetype derivado automáticamente: paramedico",
+      "pesos_zonas": {
+        "hospital": 1.0832,
+        "supermercado": 1.1109,
+        "comisaria": 1.0277,
+        "farmacia": 1.0832,
+        "casa_abandonada": 1.1109,
+        "fabrica": 1.0832,
+        "biblioteca": 1.1386,
+        "laboratorio": 1.1663,
+        "gasolinera": 1.0,
+        "estadio": 1.0554,
+        "puerto_seco": 0.9909,
+        "reserva_forestal": 1.0831
+      },
+      "umbral_descanso_fatiga": 70,
+      "umbral_descanso_hambre": 70,
+      "umbral_descanso_sed": 73,
+      "umbral_descanso_salud_pct": 0.35,
+      "max_expediciones_seguidas": 3,
+      "prioridad_inventario": [
+        "agua",
+        "comida",
+        "medicina"
+      ],
+      "habilidad_dominante": "paramedico",
+      "estadisticas": {
+        "runs": 6,
+        "dias_promedio": 0.75,
+        "mejor_racha": 2,
+        "tasa_muerte_violenta": 0.15,
+        "tasa_muerte_inanicion": 0.4729,
+        "expediciones_por_dia": 1.0181,
+        "zona_mas_exitosa": "casa_abandonada",
+        "zona_mas_letal": "puerto_seco"
+      }
+    }
+  },
+  "historial_partidas": [
+    {
+      "ts": "2026-03-10T16:28:29",
+      "archetype": "militar",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "farmacia",
+        "supermercado",
+        "casa_abandonada"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:28:31",
+      "archetype": "periodista",
+      "dias": 2,
+      "causa": "heridas de expedición",
+      "zonas": [
+        "farmacia",
+        "gasolinera",
+        "farmacia",
+        "supermercado",
+        "hospital",
+        "farmacia",
+        "fabrica",
+        "casa_abandonada",
+        "estadio",
+        "supermercado"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:28:34",
+      "archetype": "granjero",
+      "dias": 2,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "farmacia",
+        "fabrica",
+        "estadio"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:28:37",
+      "archetype": "bombero",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "fabrica",
+        "puerto_seco"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:28:39",
+      "archetype": "docente",
+      "dias": 2,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "fabrica",
+        "farmacia",
+        "gasolinera",
+        "supermercado",
+        "estadio",
+        "reserva_forestal",
+        "comisaria",
+        "supermercado",
+        "hospital"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:28:42",
+      "archetype": "cientifico",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "fabrica",
+        "estadio"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:28:45",
+      "archetype": "mecanico",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "puerto_seco"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:28:47",
+      "archetype": "electricista",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "casa_abandonada",
+        "biblioteca",
+        "comisaria"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:28:49",
+      "archetype": "docente",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "estadio",
+        "biblioteca",
+        "comisaria"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:28:52",
+      "archetype": "ladron",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "estadio"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:28:54",
+      "archetype": "granjero",
+      "dias": 2,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "biblioteca",
+        "casa_abandonada",
+        "fabrica",
+        "puerto_seco",
+        "puerto_seco"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:28:57",
+      "archetype": "ladron",
+      "dias": 2,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "estadio",
+        "fabrica",
+        "supermercado"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:00",
+      "archetype": "periodista",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "hospital",
+        "hospital",
+        "gasolinera"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:03",
+      "archetype": "ladron",
+      "dias": 2,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "comisaria",
+        "comisaria",
+        "hospital",
+        "biblioteca",
+        "reserva_forestal",
+        "laboratorio",
+        "casa_abandonada",
+        "fabrica",
+        "farmacia",
+        "reserva_forestal"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:05",
+      "archetype": "ladron",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "estadio",
+        "reserva_forestal",
+        "fabrica"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:07",
+      "archetype": "cazador",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "comisaria"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:09",
+      "archetype": "cazador",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "laboratorio",
+        "laboratorio"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:12",
+      "archetype": "paramedico",
+      "dias": 2,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "casa_abandonada",
+        "biblioteca",
+        "supermercado",
+        "laboratorio",
+        "puerto_seco",
+        "farmacia",
+        "hospital",
+        "fabrica"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:14",
+      "archetype": "ladron",
+      "dias": 2,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "puerto_seco",
+        "gasolinera",
+        "casa_abandonada",
+        "supermercado",
+        "fabrica"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:17",
+      "archetype": "periodista",
+      "dias": 3,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "farmacia",
+        "supermercado",
+        "biblioteca",
+        "biblioteca",
+        "farmacia",
+        "supermercado",
+        "casa_abandonada",
+        "gasolinera",
+        "estadio"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:20",
+      "archetype": "cientifico",
+      "dias": 2,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "fabrica",
+        "reserva_forestal",
+        "comisaria"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:22",
+      "archetype": "cocinero",
+      "dias": 2,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "comisaria",
+        "laboratorio"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:25",
+      "archetype": "cientifico",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "comisaria"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:28",
+      "archetype": "cocinero",
+      "dias": 3,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "estadio",
+        "hospital",
+        "farmacia",
+        "gasolinera",
+        "biblioteca",
+        "reserva_forestal",
+        "fabrica"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:30",
+      "archetype": "mecanico",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "gasolinera",
+        "puerto_seco"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:33",
+      "archetype": "periodista",
+      "dias": 1,
+      "causa": "heridas de expedición",
+      "zonas": [
+        "estadio",
+        "hospital",
+        "reserva_forestal",
+        "farmacia",
+        "gasolinera",
+        "casa_abandonada"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:35",
+      "archetype": "cocinero",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "laboratorio",
+        "casa_abandonada",
+        "gasolinera",
+        "reserva_forestal",
+        "biblioteca",
+        "hospital"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:37",
+      "archetype": "docente",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "hospital",
+        "laboratorio"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:40",
+      "archetype": "electricista",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "farmacia",
+        "casa_abandonada",
+        "fabrica",
+        "farmacia"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:42",
+      "archetype": "docente",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "casa_abandonada",
+        "hospital"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:45",
+      "archetype": "cocinero",
+      "dias": 3,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "farmacia",
+        "supermercado",
+        "casa_abandonada",
+        "casa_abandonada",
+        "estadio",
+        "hospital",
+        "comisaria",
+        "puerto_seco",
+        "supermercado",
+        "fabrica"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:48",
+      "archetype": "cocinero",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "puerto_seco"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:50",
+      "archetype": "militar",
+      "dias": 2,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "reserva_forestal",
+        "comisaria",
+        "gasolinera"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:52",
+      "archetype": "docente",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "puerto_seco"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:55",
+      "archetype": "ladron",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "gasolinera",
+        "hospital"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:57",
+      "archetype": "granjero",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "reserva_forestal",
+        "laboratorio"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:29:59",
+      "archetype": "cientifico",
+      "dias": 2,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "biblioteca",
+        "hospital",
+        "estadio"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:47:57",
+      "archetype": "paramedico",
+      "dias": 1,
+      "causa": "heridas de expedición",
+      "zonas": [
+        "puerto_seco",
+        "supermercado",
+        "reserva_forestal",
+        "puerto_seco"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:48:07",
+      "archetype": "cocinero",
+      "dias": 2,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "reserva_forestal",
+        "biblioteca",
+        "comisaria"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:48:07",
+      "archetype": "mecanico",
+      "dias": 2,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "farmacia",
+        "hospital",
+        "supermercado",
+        "hospital",
+        "casa_abandonada",
+        "biblioteca",
+        "comisaria",
+        "comisaria"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:49:42",
+      "archetype": "mecanico",
+      "dias": 2,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "casa_abandonada",
+        "reserva_forestal",
+        "supermercado",
+        "biblioteca",
+        "hospital",
+        "comisaria"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:51:19",
+      "archetype": "militar",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "fabrica",
+        "laboratorio"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:51:21",
+      "archetype": "cocinero",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "puerto_seco"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:51:24",
+      "archetype": "docente",
+      "dias": 2,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "comisaria",
+        "gasolinera",
+        "farmacia",
+        "gasolinera",
+        "puerto_seco",
+        "hospital"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:51:27",
+      "archetype": "mecanico",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "gasolinera",
+        "puerto_seco",
+        "gasolinera",
+        "biblioteca"
+      ]
+    },
+    {
+      "ts": "2026-03-10T16:51:29",
+      "archetype": "ladron",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "puerto_seco",
+        "estadio"
+      ]
+    },
+    {
+      "ts": "2026-03-10T17:21:03",
+      "archetype": "cocinero",
+      "dias": 2,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "casa_abandonada",
+        "puerto_seco",
+        "hospital",
+        "biblioteca",
+        "farmacia"
+      ]
+    },
+    {
+      "ts": "2026-03-10T17:21:11",
+      "archetype": "medico",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "puerto_seco",
+        "casa_abandonada"
+      ]
+    },
+    {
+      "ts": "2026-03-10T17:21:11",
+      "archetype": "docente",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "farmacia",
+        "reserva_forestal",
+        "gasolinera",
+        "gasolinera"
+      ]
+    },
+    {
+      "ts": "2026-03-10T17:22:07",
+      "archetype": "cientifico",
+      "dias": 1,
+      "causa": "inanición o deshidratación en refugio",
+      "zonas": [
+        "farmacia",
+        "biblioteca",
+        "comisaria"
+      ]
+    }
+  ],
+  "metadata": {
+    "total_runs": 178,
+    "total_dias_simulados": 264,
+    "ultima_actualizacion": "2026-03-10T17:22:07"
+  }
+}

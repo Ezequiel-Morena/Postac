@@ -1,147 +1,216 @@
 # ============================================================
 # data/personajes.py
 # Nombres, apellidos y trasfondos de personaje.
-#
-# Para agregar un trasfondo nuevo:
-#   1. Añadir una entrada a BACKGROUNDS
-#   2. Referenciar el rasgo de background en data/rasgos.py
-#   El engine leerá todo automáticamente.
 # ============================================================
 
 NOMBRES = {
     "masculino": [
-        "Marcos", "Elías", "Iván", "León", "Damián", "Sebastián",
-        "Rafael", "Tomás", "Bruno", "Hugo", "Emilio", "Nicolás",
-        "Axel", "Mateo", "Santiago", "Víctor", "Rodrigo", "Abel",
-        "Dante", "Ezra", "Ciro", "René", "Omar", "Héctor",
-        "Fabio", "Leandro", "Ignacio", "Joel", "Ariel", "Saúl",
+        "Marcos", "Elias", "Ivan", "Leon", "Damian", "Sebastian",
+        "Rafael", "Tomas", "Bruno", "Hugo", "Emilio", "Nicolas",
+        "Axel", "Mateo", "Santiago", "Victor", "Rodrigo", "Abel",
+        "Dante", "Ezra", "Ciro", "Rene", "Omar", "Hector",
+        "Fabio", "Leandro", "Ignacio", "Joel", "Ariel", "Saul",
+        "Adrian", "Gael", "Esteban", "Uriel", "Noe", "Joaquin",
+        "Bastian", "Mauro", "Martin", "Nestor", "Alvaro", "Cesar",
+        "Pablo", "Julian", "Andres", "Lucas", "Enzo", "Ismael",
+        "Ramiro", "Cristian", "Aldo", "Iker", "Franco", "Tadeo",
+        "Gabriel", "Gerardo", "Samuel", "Xavier", "Ezequiel", "Benjamin",
     ],
     "femenino": [
-        "Mara", "Sofía", "Elena", "Zoe", "Nadia", "Valeria",
+        "Mara", "Sofia", "Elena", "Zoe", "Nadia", "Valeria",
         "Carmen", "Iris", "Luna", "Dana", "Vera", "Claudia",
         "Alina", "Renata", "Miriam", "Jade", "Camila", "Leila",
         "Ara", "Nora", "Sasha", "Elia", "Talia", "Rhea",
-        "Deva", "Inés", "Fiona", "Nyx", "Petra", "Selene",
+        "Deva", "Ines", "Fiona", "Nyx", "Petra", "Selene",
+        "Aitana", "Noelia", "Julia", "Teresa", "Marta", "Olivia",
+        "Marina", "Lucia", "Paula", "Rebeca", "Candela", "Bianca",
+        "Abril", "Naia", "Nerea", "Amaya", "Lara", "Jimena",
+        "Agata", "Mila", "Kiara", "Noa", "Pilar", "Rocio",
+        "Daniela", "Victoria", "Gabriela", "Yasmin", "Malena", "Alma",
     ],
     "apellidos": [
         "Vega", "Ramos", "Cruz", "Morales", "Torres", "Reyes",
-        "Castillo", "Mendoza", "Silva", "Ríos", "Guerrero", "Salinas",
-        "Vargas", "Flores", "Navarro", "Ibáñez", "Herrera", "Palma",
-        "Rojas", "Núñez", "Peña", "Aguilar", "Fuentes", "Ortega",
+        "Castillo", "Mendoza", "Silva", "Rios", "Guerrero", "Salinas",
+        "Vargas", "Flores", "Navarro", "Ibanez", "Herrera", "Palma",
+        "Rojas", "Nunez", "Pena", "Aguilar", "Fuentes", "Ortega",
         "Medina", "Lara", "Soto", "Delgado", "Romero", "Campos",
+        "Ferreyra", "Paredes", "Benitez", "Carrizo", "Molina", "Alonso",
+        "Serrano", "Rivera", "Valdez", "Correa", "Suarez", "Quintero",
+        "Caballero", "Miranda", "Mendez", "Roldan", "Prieto", "Farias",
+        "Bustos", "Sanchez", "Lozano", "Montes", "Cabrera", "Aranda",
+        "Ledesma", "Acosta", "Villalba", "Farina", "Ponce", "Vidal",
+        "Pizarro", "Godoy", "Montero", "Bravo", "Colman", "Lagos",
     ],
 }
 
-# ──────────────────────────────────────────────────────────────
-#  TRASFONDOS
-#  Cada background define:
-#   - bonus_stats:  modificadores sobre las stats base
-#   - bonus_skills: modificadores sobre las skills derivadas
-#   - rasgos:       lista de claves en data/rasgos.py
-#   - items_inicio: items con los que empieza el personaje
-# ──────────────────────────────────────────────────────────────
 BACKGROUNDS = {
     "medico": {
-        "nombre":      "Médico/a de emergencias",
-        "descripcion": "Antes del colapso trabajabas en urgencias. "
-                       "Sabes leer síntomas, suturar heridas y mantener la calma.",
+        "nombre": "Medico/a de emergencias",
+        "descripcion": "Entrenado para decisiones rapidas en caos clinico.",
         "bonus_stats": {"inteligencia": 2, "resistencia": 1},
-        "bonus_skills": {"medicina": 25, "supervivencia": 10},
-        "rasgos":       ["instinto_medico"],
+        "bonus_skills": {"medicina": 20, "farmacologia": 12, "supervivencia": 8},
+        "rasgos": ["instinto_medico"],
         "items_inicio": [
-            {
-                "ref": "botiquin",
-                "desc_override": None,
-            },
-            {
-                "ref": "bisturi",
-                "nombre": "Bisturí",
-                "tipo": "herramienta_medica",
-                "peso": 0.1,
-                "desc": "Útil para cirugías de campo o como arma improvisada.",
-            },
-            {
-                "ref": "cuaderno_medico",
-            },
+            {"ref": "botiquin"},
+            {"ref": "venda", "cantidad_override": 2},
+            {"ref": "cuaderno_medico"},
         ],
+        "ropa_inicio": ["camiseta_algodon", "pantalon_algodon", "zapatillas"],
+    },
+    "paramedico": {
+        "nombre": "Paramedico/a de calle",
+        "descripcion": "Especialista en estabilizar heridos fuera de hospital.",
+        "bonus_stats": {"resistencia": 2, "destreza": 1},
+        "bonus_skills": {"medicina": 16, "atletismo": 10, "supervivencia": 8},
+        "rasgos": ["instinto_medico"],
+        "items_inicio": [
+            {"ref": "venda", "cantidad_override": 3},
+            {"ref": "antiseptico"},
+            {"ref": "sutura"},
+        ],
+        "ropa_inicio": ["camiseta_algodon", "pantalon_termico", "botas_cuero"],
     },
     "mecanico": {
-        "nombre":      "Mecánico/a automotriz",
-        "descripcion": "Entiendes cómo funcionan las máquinas. "
-                       "Puedes fabricar herramientas y reparar casi cualquier cosa.",
+        "nombre": "Mecanico/a automotriz",
+        "descripcion": "Conoce herramientas, piezas y reparaciones de campo.",
         "bonus_stats": {"fuerza": 1, "inteligencia": 1, "destreza": 1},
-        "bonus_skills": {"mecanica": 25, "saqueo": 10},
-        "rasgos":       ["ingenio_mecanico"],
+        "bonus_skills": {"mecanica": 20, "carpinteria": 8, "saqueo": 8},
+        "rasgos": ["ingenio_mecanico"],
         "items_inicio": [
             {"ref": "llave_inglesa"},
             {"ref": "kit_herramientas"},
             {"ref": "cinta_aislante"},
         ],
+        "ropa_inicio": ["camiseta_algodon", "pantalon_cuero", "botas_cuero", "guantes_cuero"],
+    },
+    "electricista": {
+        "nombre": "Electricista",
+        "descripcion": "Diagnostica cableados, baterias y sistemas de energia.",
+        "bonus_stats": {"inteligencia": 2, "destreza": 1},
+        "bonus_skills": {"mecanica": 14, "balistica": 6, "carpinteria": 6},
+        "rasgos": ["ingenio_mecanico"],
+        "items_inicio": [
+            {"ref": "cable_electrico", "cantidad_override": 2},
+            {"ref": "pilas", "cantidad_override": 2},
+            {"ref": "linterna"},
+        ],
+        "ropa_inicio": ["camiseta_algodon", "pantalon_algodon", "zapatillas", "guantes_trabajo"],
     },
     "militar": {
-        "nombre":      "Militar / ex-policía",
-        "descripcion": "Entrenamiento en combate y trabajo bajo presión. "
-                       "Conoces tácticas de supervivencia y no te derrumbas en crisis.",
+        "nombre": "Militar / ex-policia",
+        "descripcion": "Entrenamiento tactico y control bajo presion.",
         "bonus_stats": {"fuerza": 2, "destreza": 1},
-        "bonus_skills": {"combate_cac": 20, "combate_distancia": 15, "sigilo": 10},
-        "rasgos":       ["disciplina_combate"],
+        "bonus_skills": {"combate_cac": 14, "combate_distancia": 14, "atletismo": 8},
+        "rasgos": ["disciplina_combate"],
         "items_inicio": [
             {"ref": "cuchillo_tactico"},
             {"ref": "chaleco_cuero"},
             {"ref": "venda", "cantidad_override": 2},
         ],
+        "ropa_inicio": ["gabardina_militar", "pantalon_cargo", "botas_militares", "guantes_cuero"],
+    },
+    "bombero": {
+        "nombre": "Bombero/a",
+        "descripcion": "Rescate en entornos hostiles y alta tolerancia al estres.",
+        "bonus_stats": {"fuerza": 1, "resistencia": 2, "destreza": 1},
+        "bonus_skills": {"atletismo": 14, "supervivencia": 10, "combate_cac": 8},
+        "rasgos": ["curtido"],
+        "items_inicio": [
+            {"ref": "hacha"},
+            {"ref": "mascarilla"},
+            {"ref": "botella_agua"},
+        ],
+        "ropa_inicio": ["chaqueta_cuero", "pantalon_cuero", "botas_invierno", "guantes_cuero", "casco_construccion"],
     },
     "granjero": {
-        "nombre":      "Granjero/a",
-        "descripcion": "Viviste de la tierra. Sabes cultivar, criar animales "
-                       "y sobrevivir semanas con muy poco.",
+        "nombre": "Granjero/a",
+        "descripcion": "Experiencia en autosustento, trabajo fisico y cultivos.",
         "bonus_stats": {"resistencia": 2, "fuerza": 1, "suerte": 1},
-        "bonus_skills": {"supervivencia": 25, "saqueo": 10},
-        "rasgos":       ["hijo_de_la_tierra"],
+        "bonus_skills": {"supervivencia": 16, "botanica": 14, "cocina": 8},
+        "rasgos": ["hijo_de_la_tierra"],
         "items_inicio": [
             {"ref": "machete"},
-            {"ref": "lata_frijoles", "cantidad_override": 3},
+            {"ref": "lata_frijoles", "cantidad_override": 2},
             {"ref": "semillas"},
         ],
+        "ropa_inicio": ["camiseta_algodon", "pantalon_algodon", "botas_cuero", "sombrero_ala"],
+    },
+    "cazador": {
+        "nombre": "Cazador/a",
+        "descripcion": "Rastreo, paciencia y precision en campo abierto.",
+        "bonus_stats": {"percepcion": 2, "destreza": 1, "resistencia": 1},
+        "bonus_skills": {"combate_distancia": 12, "supervivencia": 12, "sigilo": 8},
+        "rasgos": ["disciplina_combate"],
+        "items_inicio": [
+            {"ref": "lanza_improvisada"},
+            {"ref": "cuchillo"},
+            {"ref": "carne_ahumada"},
+        ],
+        "ropa_inicio": ["chaqueta_cuero", "pantalon_cuero", "botas_cuero", "gorro_lana"],
     },
     "cientifico": {
-        "nombre":      "Científico/a",
-        "descripcion": "Mente analítica. Entiendes la biología del virus "
-                       "y cómo sintetizar compuestos con recursos básicos.",
+        "nombre": "Cientifico/a",
+        "descripcion": "Perfil analitico para diagnostico y resolucion tecnica.",
         "bonus_stats": {"inteligencia": 3, "percepcion": 1},
-        "bonus_skills": {"medicina": 15, "mecanica": 15, "supervivencia": 10},
-        "rasgos":       ["mente_analitica"],
+        "bonus_skills": {"medicina": 10, "farmacologia": 10, "mecanica": 8, "botanica": 8},
+        "rasgos": ["mente_analitica"],
         "items_inicio": [
             {"ref": "cuaderno_notas"},
             {"ref": "antibiotico"},
             {"ref": "mascarilla"},
         ],
+        "ropa_inicio": ["camiseta_algodon", "pantalon_algodon", "zapatillas"],
+    },
+    "cocinero": {
+        "nombre": "Cocinero/a",
+        "descripcion": "Aprovecha ingredientes al maximo y reduce desperdicio.",
+        "bonus_stats": {"inteligencia": 1, "destreza": 1, "suerte": 2},
+        "bonus_skills": {"cocina": 18, "supervivencia": 10, "saqueo": 6},
+        "rasgos": ["estomago_de_hierro"],
+        "items_inicio": [
+            {"ref": "cuchillo"},
+            {"ref": "lata_sopa", "cantidad_override": 2},
+            {"ref": "barritas_energia", "cantidad_override": 2},
+        ],
+        "ropa_inicio": ["camiseta_algodon", "pantalon_algodon", "zapatillas"],
+    },
+    "periodista": {
+        "nombre": "Periodista de investigacion",
+        "descripcion": "Leer personas, extraer informacion y moverse entre riesgos.",
+        "bonus_stats": {"inteligencia": 2, "percepcion": 1, "suerte": 1},
+        "bonus_skills": {"persuasion": 16, "sigilo": 10, "liderazgo": 8},
+        "rasgos": ["cara_de_poker"],
+        "items_inicio": [
+            {"ref": "radio_comunicacion"},
+            {"ref": "cuaderno_notas"},
+            {"ref": "linterna"},
+        ],
+        "ropa_inicio": ["chaqueta_cuero", "pantalon_algodon", "zapatillas"],
+    },
+    "docente": {
+        "nombre": "Docente",
+        "descripcion": "Gestion de grupo, didactica y templanza social.",
+        "bonus_stats": {"inteligencia": 2, "suerte": 1, "resistencia": 1},
+        "bonus_skills": {"liderazgo": 14, "persuasion": 12, "supervivencia": 6},
+        "rasgos": ["aprendiz_rapido"],
+        "items_inicio": [
+            {"ref": "guia_supervivencia"},
+            {"ref": "cuaderno_notas"},
+            {"ref": "botella_agua"},
+        ],
+        "ropa_inicio": ["camiseta_algodon", "pantalon_algodon", "zapatillas"],
     },
     "ladron": {
-        "nombre":      "Ladrón / Carterista",
-        "descripcion": "Viviste al margen de la ley. "
-                       "La habilidad de pasar desapercibido ahora vale más que cualquier arma.",
+        "nombre": "Ladron / Carterista",
+        "descripcion": "Supervivencia urbana basada en sigilo y oportunidad.",
         "bonus_stats": {"destreza": 3, "suerte": 1},
-        "bonus_skills": {"sigilo": 25, "saqueo": 20},
-        "rasgos":       ["dedos_ligeros"],
+        "bonus_skills": {"sigilo": 18, "saqueo": 14, "persuasion": 6},
+        "rasgos": ["dedos_ligeros"],
         "items_inicio": [
             {"ref": "ganzuas"},
             {"ref": "navaja"},
             {"ref": "botella_agua"},
         ],
+        "ropa_inicio": ["capucha_sintetica", "pantalon_termico", "zapatillas", "guantes_trabajo"],
     },
-
-    # ── EJEMPLO: cómo agregar un background nuevo ─────────────
-    # "enfermero": {
-    #     "nombre":      "Enfermero/a de campo",
-    #     "descripcion": "Asistente médico en zonas de conflicto previas al colapso.",
-    #     "bonus_stats": {"inteligencia": 1, "resistencia": 1, "percepcion": 1},
-    #     "bonus_skills": {"medicina": 20, "supervivencia": 15},
-    #     "rasgos":      ["instinto_medico"],
-    #     "items_inicio": [
-    #         {"ref": "botiquin"},
-    #         {"ref": "antibiotico"},
-    #         {"ref": "venda", "cantidad_override": 3},
-    #     ],
-    # },
 }

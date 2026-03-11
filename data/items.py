@@ -12,7 +12,7 @@
 #   arma_contundente | arma_cortante | arma_fuego | arma_arrojadiza
 #   municion | armadura | casco | equipo | equipo_especial
 #   herramienta | herramienta_medica | material | material_especial
-#   combustible | libro | mapa | especial
+#   combustible | libro | mapa | especial | vestimenta
 # ============================================================
 
 ITEMS = {
@@ -26,6 +26,15 @@ ITEMS = {
         "peso":    0.1,
         "usos":    1,
         "efectos": {"salud": 8},
+        "farmacologia": {
+            "principio_activo": "antisepsia_local",
+            "clase": "topico",
+            "dosis": 0.4,
+            "dosis_toxica": 3.5,
+            "ventana_horas": 2,
+            "contraindicaciones": [],
+            "no_combinar_con": [],
+        },
         "desc":    "Detiene hemorragias menores. Esencial en el kit básico.",
     },
     "botiquin": {
@@ -34,6 +43,15 @@ ITEMS = {
         "peso":    0.5,
         "usos":    3,
         "efectos": {"salud": 20},
+        "farmacologia": {
+            "principio_activo": "analgesico_generico",
+            "clase": "analgesico",
+            "dosis": 1.0,
+            "dosis_toxica": 2.4,
+            "ventana_horas": 6,
+            "contraindicaciones": ["deshidratacion"],
+            "no_combinar_con": ["opioide"],
+        },
         "desc":    "Vendas, antiséptico y analgésicos. El estándar mínimo de supervivencia.",
     },
     "antibiotico": {
@@ -42,6 +60,15 @@ ITEMS = {
         "peso":    0.1,
         "usos":    4,
         "efectos": {"condicion_remove": "infeccion"},
+        "farmacologia": {
+            "principio_activo": "amoxicilina",
+            "clase": "antibiotico",
+            "dosis": 1.0,
+            "dosis_toxica": 2.6,
+            "ventana_horas": 8,
+            "contraindicaciones": ["hambre_critica"],
+            "no_combinar_con": ["opioide"],
+        },
         "desc":    "Combaten infecciones bacterianas. No sirven para virus.",
     },
     "morfina": {
@@ -51,6 +78,15 @@ ITEMS = {
         "usos":    2,
         "efectos": {"salud": 40, "fatiga": -20},
         "riesgo":  "adiccion_morfina_acum",
+        "farmacologia": {
+            "principio_activo": "morfina",
+            "clase": "opioide",
+            "dosis": 1.4,
+            "dosis_toxica": 2.1,
+            "ventana_horas": 10,
+            "contraindicaciones": ["deshidratacion", "radiacion_alta"],
+            "no_combinar_con": ["analgesico", "sedante"],
+        },
         "desc":    "Analgésico potente. Funciona, pero el cuerpo la recuerda.",
     },
     "antiseptico": {
@@ -59,6 +95,15 @@ ITEMS = {
         "peso":    0.2,
         "usos":    3,
         "efectos": {"condicion_prevent": "infeccion"},
+        "farmacologia": {
+            "principio_activo": "clorhexidina",
+            "clase": "topico",
+            "dosis": 0.5,
+            "dosis_toxica": 4.0,
+            "ventana_horas": 2,
+            "contraindicaciones": [],
+            "no_combinar_con": [],
+        },
         "desc":    "Previene infecciones al limpiar heridas abiertas.",
     },
     "sutura": {
@@ -68,6 +113,15 @@ ITEMS = {
         "usos":    2,
         "efectos": {"salud": 30, "condicion_remove": "hemorragia"},
         "skill_req": {"medicina": 30},
+        "farmacologia": {
+            "principio_activo": "lidocaina_local",
+            "clase": "analgesico",
+            "dosis": 0.8,
+            "dosis_toxica": 2.2,
+            "ventana_horas": 5,
+            "contraindicaciones": ["deshidratacion"],
+            "no_combinar_con": ["opioide"],
+        },
         "desc":    "Para heridas profundas. Requiere pulso firme.",
     },
     "yodo": {
@@ -76,6 +130,15 @@ ITEMS = {
         "peso":    0.1,
         "usos":    5,
         "efectos": {"condicion_prevent": "infeccion", "radiacion": -5},
+        "farmacologia": {
+            "principio_activo": "yoduro",
+            "clase": "protector_radiologico",
+            "dosis": 0.7,
+            "dosis_toxica": 2.8,
+            "ventana_horas": 6,
+            "contraindicaciones": [],
+            "no_combinar_con": [],
+        },
         "desc":    "Antiséptico y algo de protección contra radiación.",
     },
     "pastilla_purificadora": {
@@ -179,6 +242,13 @@ ITEMS = {
         "peso":      0.5,
         "efectos":  {"hambre": -45},
         "desc":     "Bien conservada mediante ahumado.",
+    },
+    "racion_deshidratada": {
+        "nombre":   "Ración deshidratada",
+        "tipo":     "comida",
+        "peso":      0.25,
+        "efectos":  {"hambre": -28, "sed": 8},
+        "desc":     "Liviana y estable por años; da energía pero exige hidratarse luego.",
     },
     "semillas": {
         "nombre":   "Semillas variadas",
@@ -396,6 +466,14 @@ ITEMS = {
         "bonus":    {"percepcion": 2},
         "desc":     "+2 Percepción en ambientes oscuros.",
     },
+    "manta_termica": {
+        "nombre":   "Manta térmica",
+        "tipo":     "equipo",
+        "peso":      0.2,
+        "usos":      6,
+        "efectos":  {"fatiga": -8, "moral": 3},
+        "desc":     "Reduce pérdida de calor y mejora descanso en clima hostil.",
+    },
     "mochila_tactica": {
         "nombre":   "Mochila táctica",
         "tipo":     "equipo_especial",
@@ -460,6 +538,14 @@ ITEMS = {
         "efectos":  {"forzar_cerraduras": True, "reparar": True},
         "desc":     "Para reparar objetos y forzar cerraduras simples.",
     },
+    "detector_radiacion": {
+        "nombre":   "Detector Geiger",
+        "tipo":     "herramienta",
+        "peso":      0.4,
+        "usos":     30,
+        "efectos":  {"alerta_radiacion": True},
+        "desc":     "Permite anticipar zonas con radiación peligrosa.",
+    },
     "cinta_aislante": {
         "nombre":   "Cinta aislante",
         "tipo":     "material",
@@ -517,6 +603,13 @@ ITEMS = {
         "peso":      0.3,
         "desc":     "Para fabricar trampas eléctricas o reparaciones.",
     },
+    "filtro_hepa": {
+        "nombre":   "Filtro HEPA",
+        "tipo":     "material_especial",
+        "peso":      0.3,
+        "cantidad":  1,
+        "desc":     "Componente para mejorar purificación de aire/agua en refugio.",
+    },
 
     # ══════════════════════════════════════════════════════════
     #  MAPAS / ESPECIALES
@@ -543,16 +636,356 @@ ITEMS = {
         "desc":     "Contiene rutas y advertencias de otro superviviente.",
     },
 
-    # ── EJEMPLO: cómo agregar un ítem nuevo ───────────────────
-    # "arco_improvisado": {
-    #     "nombre":      "Arco improvisado",
-    #     "tipo":        "arma_distancia",
-    #     "peso":         1.2,
-    #     "daño":        (8, 16),
-    #     "durabilidad":  35,
-    #     "silencioso":   True,
-    #     "municion_tipo": "flechas",
-    #     "cargador":      1,
-    #     "desc":        "Silencioso y reutilizable. Difícil de fabricar.",
-    # },
+    # ══════════════════════════════════════════════════════════
+    #  NUEVOS ÍTEMS MÉDICOS Y DE PROTECCIÓN AMBIENTAL
+    # ══════════════════════════════════════════════════════════
+
+    "pastillas_yodo": {
+        "nombre": "Pastillas de yodo",
+        "tipo":   "medicina",
+        "peso":    0.05,
+        "usos":    6,
+        "efectos": {"radiacion": -15},
+        "farmacologia": {
+            "principio_activo": "yoduro_potasico",
+            "clase": "radioprotector",
+            "dosis": 0.8,
+            "dosis_toxica": 4.0,
+            "ventana_horas": 24,
+            "contraindicaciones": ["hipertiroidismo"],
+            "no_combinar_con": [],
+        },
+        "desc": "Bloquean la absorción de yodo radiactivo por la tiroides. Uso preventivo.",
+    },
+    "antidoto_universal": {
+        "nombre": "Antídoto universal",
+        "tipo":   "medicina_fuerte",
+        "peso":    0.15,
+        "usos":    1,
+        "efectos": {"condicion_remove": "envenenamiento_quimico", "salud": 10},
+        "farmacologia": {
+            "principio_activo": "carbono_activado",
+            "clase": "antidoto",
+            "dosis": 1.2,
+            "dosis_toxica": 3.0,
+            "ventana_horas": 4,
+            "contraindicaciones": [],
+            "no_combinar_con": [],
+        },
+        "desc": "Absorbe toxinas activas. Eficaz solo si se administra rápido.",
+    },
+    "purgante_medico": {
+        "nombre": "Purgante médico",
+        "tipo":   "medicina",
+        "peso":    0.1,
+        "usos":    2,
+        "efectos": {"condicion_remove": "intoxicacion_alimentaria", "salud": 5, "sed": 8},
+        "farmacologia": {
+            "principio_activo": "bisacodilo",
+            "clase": "purgante",
+            "dosis": 0.9,
+            "dosis_toxica": 2.5,
+            "ventana_horas": 6,
+            "contraindicaciones": ["deshidratacion"],
+            "no_combinar_con": ["opioide"],
+        },
+        "desc": "Elimina toxinas digestivas. Provoca deshidratación: beber agua después.",
+    },
+    "mascara_gas": {
+        "nombre": "Máscara de gas",
+        "tipo":   "equipo_especial",
+        "peso":    0.8,
+        "usos":   -1,
+        "efectos": {"proteccion_quimica": True},
+        "durabilidad": 70,
+        "desc": "Filtra partículas químicas y polvo tóxico. Esencial en zonas contaminadas.",
+    },
+    "suero_rehidratacion": {
+        "nombre": "Suero de rehidratación",
+        "tipo":   "medicina",
+        "peso":    0.3,
+        "usos":    2,
+        "efectos": {"sed": -35, "salud": 6},
+        "farmacologia": {
+            "principio_activo": "electrolitos_orales",
+            "clase": "rehidratante",
+            "dosis": 0.6,
+            "dosis_toxica": 5.0,
+            "ventana_horas": 3,
+            "contraindicaciones": [],
+            "no_combinar_con": [],
+        },
+        "desc": "Rehidratación rápida con electrolitos. Más efectivo que agua sola.",
+    },
+    "vitaminas_c": {
+        "nombre": "Vitamina C (comprimidos)",
+        "tipo":   "medicina",
+        "peso":    0.05,
+        "usos":    8,
+        "efectos": {"salud": 3, "moral": 2},
+        "farmacologia": {
+            "principio_activo": "acido_ascorbico",
+            "clase": "vitamina",
+            "dosis": 0.3,
+            "dosis_toxica": 6.0,
+            "ventana_horas": 12,
+            "contraindicaciones": [],
+            "no_combinar_con": [],
+        },
+        "desc": "Refuerza el sistema inmune y sube el ánimo levemente. Útil en periodos largos.",
+    },
+    "calmante_nervioso": {
+        "nombre": "Calmante nervioso",
+        "tipo":   "medicina",
+        "peso":    0.08,
+        "usos":    3,
+        "efectos": {"moral": 20, "fatiga": 10},
+        "farmacologia": {
+            "principio_activo": "diazepam",
+            "clase": "sedante",
+            "dosis": 1.0,
+            "dosis_toxica": 2.2,
+            "ventana_horas": 8,
+            "contraindicaciones": ["radiacion_alta"],
+            "no_combinar_con": ["opioide", "analgesico"],
+        },
+        "desc": "Reduce la ansiedad y el pánico. La mente también puede romperse.",
+    },
+    "linimento_muscular": {
+        "nombre": "Linimento muscular",
+        "tipo":   "medicina",
+        "peso":    0.2,
+        "usos":    4,
+        "efectos": {"fatiga": -15},
+        "farmacologia": {
+            "principio_activo": "salicilato_metilo",
+            "clase": "topico",
+            "dosis": 0.4,
+            "dosis_toxica": 3.5,
+            "ventana_horas": 4,
+            "contraindicaciones": [],
+            "no_combinar_con": [],
+        },
+        "desc": "Alivia contracturas y dolor muscular. Básico tras jornadas largas.",
+    },
+    "agua_contaminada": {
+        "nombre": "Agua contaminada",
+        "tipo":   "agua_sucia",
+        "peso":    0.5,
+        "usos":    1,
+        "efectos": {"sed": -20, "condicion_riesgo": "intoxicacion_alimentaria", "prob_condicion": 0.25},
+        "desc": "Sacias la sed, pero las bacterias cobran su precio. Purificar antes de beber.",
+    },
+    "racion_militar": {
+        "nombre": "Ración militar (MRE)",
+        "tipo":   "comida",
+        "peso":    0.6,
+        "usos":    1,
+        "efectos": {"hambre": -55, "moral": 5},
+        "desc": "Comida calórica y estable. Diseñada para situaciones de combate sostenido.",
+    },
+    "carne_cruda": {
+        "nombre": "Carne cruda",
+        "tipo":   "comida",
+        "peso":    0.4,
+        "usos":    1,
+        "efectos": {"hambre": -30, "condicion_riesgo": "intoxicacion_alimentaria", "prob_condicion": 0.35},
+        "desc": "Proteínas, sí. Pero sin cocinar, el riesgo de infección es real.",
+    },
+
+    # ── HERRAMIENTAS DE PESCA Y CAZA ──────────────────────────
+    "cana_pesca": {
+        "nombre": "Caña de pesca improvisada",
+        "tipo": "herramienta",
+        "peso": 0.8,
+        "usos": 15,
+        "durabilidad_max": 15,
+        "desc": "Ramas y hilo resistente. Funciona si sabes usarla.",
+    },
+    "trampa_caza": {
+        "nombre": "Trampa de lazo",
+        "tipo": "herramienta",
+        "peso": 0.3,
+        "usos": 20,
+        "durabilidad_max": 20,
+        "desc": "Lazo de alambre. Lo que pasa por ahí, no sale.",
+    },
+    "pedernal": {
+        "nombre": "Pedernal y acero",
+        "tipo": "herramienta",
+        "peso": 0.15,
+        "usos": 50,
+        "durabilidad_max": 50,
+        "desc": "El método más antiguo de encender fuego. Lento pero inagotable.",
+    },
+    "olla_campo": {
+        "nombre": "Olla de campo",
+        "tipo": "herramienta",
+        "peso": 0.9,
+        "usos": 100,
+        "durabilidad_max": 100,
+        "desc": "Imprescindible para hervir agua y hacer caldos.",
+    },
+
+    # ── COMBUSTIBLES ──────────────────────────────────────────
+    "lena": {
+        "nombre": "Leña seca",
+        "tipo": "combustible",
+        "peso": 1.0,
+        "valor_calorico": 40,
+        "desc": "Madera seca lista para quemar. Dura más que la madera húmeda.",
+    },
+    "carbon_vegetal": {
+        "nombre": "Carbón vegetal",
+        "tipo": "combustible",
+        "peso": 0.5,
+        "valor_calorico": 70,
+        "desc": "Más eficiente que la leña. Menos humo, más calor.",
+    },
+
+    # ── ALIMENTOS CRUDOS (PESCA / CAZA) ───────────────────────
+    "pez_pequeno": {
+        "nombre": "Pez pequeño",
+        "tipo": "comida",
+        "peso": 0.15,
+        "efectos": {"hambre": 12, "posible_parasitos": True},
+        "desc": "Crudo tiene parásitos. Hay que cocinarlo.",
+        "crudo": True,
+    },
+    "pez_mediano": {
+        "nombre": "Pez mediano",
+        "tipo": "comida",
+        "peso": 0.35,
+        "efectos": {"hambre": 22, "posible_parasitos": True},
+        "desc": "Buen tamaño. Cocinado, alimenta bien.",
+        "crudo": True,
+    },
+    "carne_animal_cruda": {
+        "nombre": "Carne de animal",
+        "tipo": "comida",
+        "peso": 0.5,
+        "efectos": {"hambre": 30, "posible_parasitos": True},
+        "desc": "Carne de caza. Sin cocinar es un riesgo.",
+        "crudo": True,
+    },
+    "piel_animal": {
+        "nombre": "Piel de animal",
+        "tipo": "material",
+        "peso": 0.4,
+        "desc": "Puede curtirse para hacer ropa o cuero.",
+    },
+
+    # ── ALIMENTOS COCINADOS ───────────────────────────────────
+    "pez_cocido": {
+        "nombre": "Pez cocido",
+        "tipo": "comida",
+        "peso": 0.2,
+        "efectos": {"hambre": 28},
+        "desc": "El fuego mata los parásitos. Mucho más seguro.",
+    },
+    "carne_asada": {
+        "nombre": "Carne asada",
+        "tipo": "comida",
+        "peso": 0.45,
+        "efectos": {"hambre": 45},
+        "desc": "Proteína de alta calidad. Vale la leña que costó.",
+    },
+    "agua_hervida": {
+        "nombre": "Agua hervida",
+        "tipo": "agua",
+        "peso": 0.5,
+        "efectos": {"sed": 60},
+        "desc": "El fuego mata bacterias. No elimina metales pesados.",
+    },
+    "caldo_huesos": {
+        "nombre": "Caldo de huesos",
+        "tipo": "comida",
+        "peso": 0.4,
+        "efectos": {"hambre": 20, "salud": 5},
+        "desc": "Reconstituyente. Huesos hervidos durante horas.",
+    },
+
+    # ── SEMILLAS Y PLANTAS ────────────────────────────────────
+    "semillas_tomate": {
+        "nombre": "Semillas de tomate",
+        "tipo": "material_especial",
+        "peso": 0.05,
+        "ciclo_dias": 30,
+        "rendimiento": 8,
+        "desc": "30 días para cosechar. Necesita agua regular.",
+    },
+    "semillas_papa": {
+        "nombre": "Semillas de papa",
+        "tipo": "material_especial",
+        "peso": 0.1,
+        "ciclo_dias": 60,
+        "rendimiento": 12,
+        "desc": "Alta densidad calórica. Resiste mejor el frío.",
+    },
+    "hierba_medicinal": {
+        "nombre": "Hierba medicinal",
+        "tipo": "medicina",
+        "peso": 0.1,
+        "usos": 2,
+        "efectos": {"salud": 6, "condicion_prevent": "infeccion_leve"},
+        "desc": "Propiedades antisépticas. No reemplaza antibióticos.",
+    },
+    "hongo_comestible": {
+        "nombre": "Hongo comestible",
+        "tipo": "comida",
+        "peso": 0.1,
+        "efectos": {"hambre": 10},
+        "desc": "Alta proteína. Identificarlos correctamente salva la vida.",
+    },
+
+    # ── ÍTEMS DE CRAFTEO AVANZADO ─────────────────────────────
+    "explosivo_casero": {
+        "nombre":   "Explosivo casero",
+        "tipo":     "arma_arrojadiza",
+        "peso":      0.8,
+        "daño":     (30, 55),
+        "area":      True,
+        "cantidad":  1,
+        "desc":     "Inestable y potente. Manéjalo con extremo cuidado.",
+    },
+    "chaleco_improvisado": {
+        "nombre":   "Chaleco improvisado",
+        "tipo":     "armadura",
+        "peso":      2.5,
+        "defensa":   3,
+        "slot":     "torso",
+        "desc":     "Cuero y tela reforzados con madera. Protección rudimentaria pero funcional.",
+    },
+    "senal_fuego": {
+        "nombre":   "Señal de fuego",
+        "tipo":     "equipo_especial",
+        "peso":      1.0,
+        "cantidad":  1,
+        "efectos":  {"evento_especial": "senal_socorro"},
+        "desc":     "Fuego de señalización. Puede atraer ayuda... o amenazas.",
+    },
 }
+
+# ── Auto-registro de prendas de vestimenta ────────────────────
+# Las prendas definidas en data/vestimenta.py se incorporan como
+# ítems de tipo "vestimenta" para que participen en loot, crafteo,
+# inventario y serialización sin duplicar datos.
+
+from data.vestimenta import PRENDAS as _PRENDAS
+
+for _clave, _prenda in _PRENDAS.items():
+    if _clave not in ITEMS:
+        ITEMS[_clave] = {
+            "nombre":     _prenda["nombre"],
+            "tipo":       "vestimenta",
+            "peso":       _prenda.get("peso", 0.5),
+            "slot":       _prenda["slot"],
+            "material":   _prenda.get("material", "algodon"),
+            "aislamiento_frio":  _prenda.get("aislamiento_frio", 0),
+            "aislamiento_calor": _prenda.get("aislamiento_calor", 0),
+            "impermeabilidad":   _prenda.get("impermeabilidad", 0),
+            "defensa":    _prenda.get("defensa", 0),
+            "radiacion_prot":    _prenda.get("radiacion_prot", 0),
+            "durabilidad_max":   _prenda.get("durabilidad_max", 100),
+            "desc":       _prenda.get("desc", ""),
+        }

@@ -10,6 +10,8 @@ from data.loot     import LOOT_POOLS
 from data.skills   import SKILLS
 from engine.personaje import Condicion
 from engine.combate   import resolver_combate
+from engine.relaciones import generar_superviviente_aleatorio, integrar_nuevo_miembro
+from engine.constants import clamp
 
 
 class ResultadoEvento:
@@ -28,6 +30,22 @@ class ResultadoEvento:
 
 
 # ──────────────────────────────────────────────────────────────
+#  REGISTRY DE RESOLVERS — Open/Closed: agregar tipos sin
+#  modificar el dispatcher. Mapea tipo_evento → función resolver.
+# ──────────────────────────────────────────────────────────────
+
+# Los tipos que comparten resolver se registran por separado para
+# mantener el mapeo explícito y evitar lógica dentro del registry.
+_RESOLVERS: dict = {}  # poblado después de definir las funciones
+
+
+def _registrar_resolver(tipos: list[str], fn):
+    """Registra una función resolver para uno o más tipos de evento."""
+    for tipo in tipos:
+        _RESOLVERS[tipo] = fn
+
+
+# ──────────────────────────────────────────────────────────────
 #  DISPATCHER PRINCIPAL
 # ──────────────────────────────────────────────────────────────
 
@@ -36,55 +54,20 @@ def resolver_evento(personaje, evento_key: str, area: dict) -> ResultadoEvento:
         return _evento_generico(personaje, area)
 
     tmpl = EVENTOS[evento_key]
-    r    = ResultadoEvento()
-    r.tipo   = tmpl["tipo"]
-    r.titulo = tmpl["titulo"]
-    r.añadir(f"  📍 {tmpl['titulo'].upper()}")
-    r.añadir(f"  {tmpl['descripcion']}")
+    resultado    = ResultadoEvento()
+    resultado.tipo   = tmpl["tipo"]
+    resultado.titulo = tmpl["titulo"]
+    resultado.añadir(f"  📍 {tmpl['titulo'].upper()}")
+    resultado.añadir(f"  {tmpl['descripcion']}")
 
-    t = tmpl["tipo"]
+    resolver_fn = _RESOLVERS.get(tmpl["tipo"])
+    if resolver_fn:
+        resolver_fn(resultado, personaje, tmpl, area)
 
-    if t == "combate":
-        _resolver_combate_directo(r, personaje, tmpl)
+    if resultado.moral_cambio != 0:
+        personaje.moral = clamp(personaje.moral + resultado.moral_cambio)
 
-    elif t == "combate_evadible":
-        _resolver_combate_evadible(r, personaje, tmpl, area)
-
-    elif t in ("hallazgo", "hallazgo_especial"):
-        _resolver_hallazgo(r, personaje, tmpl, area)
-
-    elif t == "interaccion":
-        _resolver_interaccion(r, personaje, tmpl, area)
-
-    elif t == "npc_amigable":
-        _resolver_npc_amigable(r, personaje, tmpl)
-
-    elif t == "npc_dilema":
-        _resolver_npc_dilema(r, personaje, tmpl)
-
-    elif t == "npc_especial":
-        _resolver_npc_especial(r, personaje, tmpl)
-
-    elif t == "peligro_ambiental":
-        _resolver_peligro_ambiental(r, personaje, tmpl)
-
-    elif t == "ambiental_forzado":
-        _resolver_ambiental_forzado(r, personaje, tmpl)
-
-    elif t == "ambiental_acumulativo":
-        _resolver_ambiental_acumulativo(r, personaje, tmpl)
-
-    elif t in ("narrativo", "narrativo_especial"):
-        _resolver_narrativo(r, personaje, tmpl)
-
-    elif t == "peligro_oculto":
-        _resolver_peligro_oculto(r, personaje, tmpl)
-
-    # Aplicar cambio de moral
-    if r.moral_cambio != 0:
-        personaje.moral = max(0, min(100, personaje.moral + r.moral_cambio))
-
-    return r
+    return resultado
 
 
 # ──────────────────────────────────────────────────────────────
@@ -105,7 +88,7 @@ def _dar_xp_skill(personaje, skill_key: str) -> None:
 #  RESOLVERS POR TIPO
 # ──────────────────────────────────────────────────────────────
 
-def _resolver_combate_directo(r, personaje, tmpl):
+def _resolver_combate_directo(r, personaje, tmpl, area=None):
     resultado_c = resolver_combate(personaje, tmpl["enemigo"],
                                    tmpl.get("iniciativa", "tirar"))
     r.combate = resultado_c
@@ -209,7 +192,7 @@ def _resolver_interaccion(r, personaje, tmpl, area):
             r.daño_recibido = resultado_c.daño_recibido
 
 
-def _resolver_npc_amigable(r, personaje, tmpl):
+def _resolver_npc_amigable(r, personaje, tmpl, area=None):
     opciones   = tmpl.get("opciones", {})
     opcion_key = _ia_elegir_npc(personaje, opciones)
     opcion     = opciones[opcion_key]
@@ -228,11 +211,26 @@ def _resolver_npc_amigable(r, personaje, tmpl):
 
     r.moral_cambio = opcion.get("moral_bonus", 0) - opcion.get("moral_costo", 0)
 
+    # Unirse al refugio si la opción lo indica y el evento lo permite.
+    if opcion.get("une_al_refugio") and tmpl.get("puede_unirse"):
+        seed = f"{getattr(personaje, 'partida_id', '0')}:{getattr(personaje, 'dia', 0)}:{opcion_key}"
+        perfil = generar_superviviente_aleatorio(seed, personaje)
+        if perfil:
+            msg = integrar_nuevo_miembro(personaje, perfil)
+            r.añadir(f"  {msg}")
+            personaje.moral = min(100, personaje.moral + 5)
+
     if recompensa.get("info_zona"):
         r.info_obtenida["info_zona"] = True
         r.añadir("  Compartió información valiosa sobre la zona.")
 
-    # XP de persuasión si la opción la requirió
+    if recompensa.get("loot_pool"):
+        pool = LOOT_POOLS.get(recompensa["loot_pool"], [])
+        if random.random() < float(recompensa.get("prob", 0.5)):
+            item_key = random.choice([k for k in pool if k is not None] or [None])
+            if item_key and item_key in ITEMS:
+                r.items_obtenidos.append(copy.deepcopy(ITEMS[item_key]))
+
     if opcion.get("skill") == "persuasion":
         _dar_xp_skill(personaje, "persuasion")
 
@@ -241,13 +239,36 @@ def _resolver_npc_amigable(r, personaje, tmpl):
             r.items_obtenidos.append(copy.deepcopy(ITEMS[key]))
 
 
-def _resolver_npc_dilema(r, personaje, tmpl):
+def _resolver_npc_dilema(r, personaje, tmpl, area=None):
     opciones   = tmpl.get("opciones", {})
     opcion_key = _ia_elegir_npc(personaje, opciones)
     opcion     = opciones[opcion_key]
     r.añadir(f"\n  → Decisión: {opcion['texto']}")
 
+    costo = opcion.get("costo", {})
+
+    # Costos.
+    if costo.get("comida"):
+        for nombre in ["Lata de frijoles", "Lata de atún", "Barrita energética"]:
+            if personaje.remover_item(nombre):
+                break
+    if costo.get("agua"):
+        personaje.remover_item("Botella de agua")
+    if costo.get("medicina"):
+        for nombre in ["Botiquín", "Antiséptico", "Venda"]:
+            if personaje.remover_item(nombre):
+                break
+
     r.moral_cambio = opcion.get("moral_bonus", 0) - opcion.get("moral_costo", 0)
+
+    # Unirse al refugio.
+    if opcion.get("une_al_refugio") and tmpl.get("puede_unirse"):
+        seed = f"{getattr(personaje, 'partida_id', '0')}:{getattr(personaje, 'dia', 0)}:{opcion_key}"
+        perfil = generar_superviviente_aleatorio(seed, personaje)
+        if perfil:
+            msg = integrar_nuevo_miembro(personaje, perfil)
+            r.añadir(f"  {msg}")
+            personaje.moral = min(100, personaje.moral + 5)
 
     if opcion.get("combate_forzado"):
         resultado_c = resolver_combate(personaje, tmpl.get("enemigo", "bandido"))
@@ -262,7 +283,7 @@ def _resolver_npc_dilema(r, personaje, tmpl):
             r.items_obtenidos.append(copy.deepcopy(ITEMS[key]))
 
 
-def _resolver_npc_especial(r, personaje, tmpl):
+def _resolver_npc_especial(r, personaje, tmpl, area=None):
     """Comerciante u otro NPC único — lógica de intercambio básica."""
     r.añadir("  El encuentro fue breve pero quizás útil.")
     for key in tmpl.get("items_disponibles", [])[:2]:
@@ -270,7 +291,7 @@ def _resolver_npc_especial(r, personaje, tmpl):
             r.items_obtenidos.append(copy.deepcopy(ITEMS[key]))
 
 
-def _resolver_peligro_ambiental(r, personaje, tmpl):
+def _resolver_peligro_ambiental(r, personaje, tmpl, area=None):
     dif    = tmpl.get("dificultad", 4)
     stat   = tmpl.get("stat_check", "destreza")
     evita  = personaje.check_stat(stat, dif)
@@ -278,34 +299,54 @@ def _resolver_peligro_ambiental(r, personaje, tmpl):
     if evita:
         r.añadir("  Reaccionas a tiempo. Sin daño.")
     else:
-        real = personaje.recibir_daño(random.randint(*tmpl["daño"]))
+        rango_daño = tmpl.get("daño", (5, 15))
+        real = personaje.recibir_daño(random.randint(*rango_daño))
         r.daño_recibido = real
         r.añadir(f"  Sin tiempo de reaccionar. -{real} hp.")
-        if tmpl.get("condicion_aplica"):
-            c = Condicion("herida_pierna", "Herida en pierna", 2, 8,
-                          {"stats_global": -1})
-            personaje.añadir_condicion(c)
-            r.añadir("  Tu pierna queda lastimada (-1 a todas las stats).")
+        _aplicar_condicion_desde_template(r, personaje, tmpl)
 
 
-def _resolver_peligro_oculto(r, personaje, tmpl):
+def _resolver_peligro_oculto(r, personaje, tmpl, area=None):
     dif   = tmpl.get("percepcion_evitar", 5)
     evita = personaje.check_stat("percepcion", dif)
 
     if evita:
         r.añadir("  Tu percepción te alerta a tiempo. Rodeas la trampa.")
     else:
-        real = personaje.recibir_daño(random.randint(*tmpl["daño"]))
+        rango_daño = tmpl.get("daño", (5, 15))
+        real = personaje.recibir_daño(random.randint(*rango_daño))
         r.daño_recibido = real
         r.añadir(f"  ¡Trampa activada! -{real} hp.")
-        if tmpl.get("condicion_aplica"):
-            c = Condicion("herida_pierna", "Herida en pierna", 2, 8,
-                          {"stats_global": -1})
-            personaje.añadir_condicion(c)
-            r.añadir("  Tu pierna queda lastimada (-1 a todas las stats).")
+        _aplicar_condicion_desde_template(r, personaje, tmpl)
 
 
-def _resolver_ambiental_forzado(r, personaje, tmpl):
+def _aplicar_condicion_desde_template(r, personaje, tmpl) -> None:
+    """Aplica una condición configurada por datos para peligros/eventos."""
+    if not tmpl.get("condicion_aplica"):
+        return
+
+    prob = float(tmpl.get("condicion_prob", 1.0))
+    if random.random() > max(0.0, min(1.0, prob)):
+        return
+
+    clave = tmpl.get("condicion_clave", tmpl.get("condicion_aplica", "herida_generica"))
+    nombre = tmpl.get("condicion_nombre", clave.replace("_", " ").title())
+    severidad = int(tmpl.get("condicion_severidad", 2))
+    duracion = int(tmpl.get("condicion_duracion", 8))
+    efectos = dict(tmpl.get("condicion_efectos", {"stats_global": -1}))
+    descripcion = tmpl.get("condicion_descripcion", "")
+
+    c = Condicion(clave, nombre, severidad, duracion, efectos, descripcion)
+    personaje.añadir_condicion(c)
+
+    msg = tmpl.get("condicion_mensaje")
+    if msg:
+        r.añadir(msg)
+    else:
+        r.añadir(f"  Sufres condición: {nombre}.")
+
+
+def _resolver_ambiental_forzado(r, personaje, tmpl, area=None):
     prot_item  = tmpl.get("proteccion_item", "")
     tiene_prot = personaje.tiene_item(prot_item) if prot_item else False
 
@@ -320,7 +361,7 @@ def _resolver_ambiental_forzado(r, personaje, tmpl):
         r.añadir(f"  Sin protección. -{real} hp.")
 
 
-def _resolver_ambiental_acumulativo(r, personaje, tmpl):
+def _resolver_ambiental_acumulativo(r, personaje, tmpl, area=None):
     prot_item  = tmpl.get("proteccion_item", "")
     tiene_prot = personaje.tiene_item(prot_item) if prot_item else False
 
@@ -330,7 +371,7 @@ def _resolver_ambiental_acumulativo(r, personaje, tmpl):
     r.añadir(f"  +{rad} radiación absorbida. Total: {personaje.radiacion}/100 ☢")
 
 
-def _resolver_narrativo(r, personaje, tmpl):
+def _resolver_narrativo(r, personaje, tmpl, area=None):
     r.moral_cambio = tmpl.get("moral_bonus", 0) - tmpl.get("moral_costo", 0)
     if tmpl.get("info_zona"):
         r.info_obtenida["info_zona"] = True
@@ -434,3 +475,25 @@ def generar_secuencia_eventos(area: dict, personaje) -> list[tuple]:
                 secuencia.append(("evento", key, zona))
 
     return secuencia
+
+
+# ──────────────────────────────────────────────────────────────
+#  REGISTRO TARDÍO — las funciones deben estar definidas antes
+#  de registrarlas; este bloque va siempre al final del módulo.
+#  Para añadir un tipo nuevo: definir su función _resolver_X()
+#  y añadir _registrar_resolver(["nuevo_tipo"], _resolver_X)
+#  sin tocar resolver_evento().
+# ──────────────────────────────────────────────────────────────
+
+_registrar_resolver(["combate"],                          _resolver_combate_directo)
+_registrar_resolver(["combate_evadible"],                 _resolver_combate_evadible)
+_registrar_resolver(["hallazgo", "hallazgo_especial"],    _resolver_hallazgo)
+_registrar_resolver(["interaccion"],                      _resolver_interaccion)
+_registrar_resolver(["npc_amigable"],                     _resolver_npc_amigable)
+_registrar_resolver(["npc_dilema"],                       _resolver_npc_dilema)
+_registrar_resolver(["npc_especial"],                     _resolver_npc_especial)
+_registrar_resolver(["peligro_ambiental"],                _resolver_peligro_ambiental)
+_registrar_resolver(["ambiental_forzado"],                _resolver_ambiental_forzado)
+_registrar_resolver(["ambiental_acumulativo"],            _resolver_ambiental_acumulativo)
+_registrar_resolver(["narrativo", "narrativo_especial"],  _resolver_narrativo)
+_registrar_resolver(["peligro_oculto"],                   _resolver_peligro_oculto)

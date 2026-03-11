@@ -7,6 +7,15 @@ from data.enemigos import ENEMIGOS
 from data.items    import ITEMS
 from data.skills   import SKILLS
 from engine.personaje import Condicion
+from engine.constants import (
+    MAX_TURNOS_COMBATE, SALUD_PCT_HUIDA_CRITICA, TURNO_MIN_HUIDA,
+    PROB_CRITICO, MULT_DAÑO_CRITICO, DIFICULTAD_GOLPE_BASE,
+    DIFICULTAD_GOLPE_POR_VELOCIDAD, PROB_LOOT_ENEMIGO,
+    MULT_DAÑO_EMBOSCADA, PROB_ATAQUE_ACIDO, DAÑO_EXTRA_ACIDO,
+    PROB_MORDIDA_INFECTADA, DAÑO_HORDA_HUIDA_MIN, DAÑO_HORDA_HUIDA_MAX,
+    DAÑO_HORDA_ATRAPADO_MIN, DAÑO_HORDA_ATRAPADO_MAX,
+    DAÑO_MANOS_MIN, DAÑO_MANOS_MAX, SUERTE_MIN_CRITICO,
+)
 
 
 class ResultadoCombate:
@@ -38,139 +47,215 @@ def resolver_combate(personaje, enemigo_key: str,
       - Todo el XP se acumula vía ganar_xp_skill() y se muestra al final
         del tick en la sección PROGRESO (no inline en el combate).
     """
-    r   = ResultadoCombate()
-    ene = dict(ENEMIGOS[enemigo_key])
-    r.enemigo_nombre = ene["nombre"]
+    resultado = ResultadoCombate()
+    enemigo   = dict(ENEMIGOS[enemigo_key])
+    resultado.enemigo_nombre = enemigo["nombre"]
 
-    salud_ene = random.randint(*ene["salud"])
-    r.añadir(f"  ▶ {ene['nombre']} — {ene['descripcion']}")
+    salud_enemigo = random.randint(*enemigo["salud"])
+    resultado.añadir(f"  ▶ {enemigo['nombre']} — {enemigo['descripcion']}")
 
-    # ── HORDA: solo huida ─────────────────────────────────────
-    if ene.get("solo_huida"):
-        r.añadir("  ¡Una HORDA! Imposible combatirla. Debes huir.")
-        if personaje.check_stat("destreza", 5):
-            r.daño_recibido = personaje.recibir_daño(random.randint(5, 15))
-            r.huida = True
-            r.añadir(f"  Huiste con dificultad. -{r.daño_recibido} hp.")
-        else:
-            r.daño_recibido = personaje.recibir_daño(random.randint(25, 50))
-            r.huida = True
-            r.añadir(f"  La horda te atrapó un momento. -{r.daño_recibido} hp.")
-        return r
+    if enemigo.get("solo_huida"):
+        return _resolver_horda(resultado, personaje, enemigo)
 
-    # ── ARMA DEL JUGADOR ──────────────────────────────────────
+    skill_combate, daño_base = _determinar_arma_jugador(resultado, personaje)
+    iniciativa = _resolver_iniciativa(iniciativa, personaje, enemigo)
+
+    xp_por_golpe = SKILLS.get(skill_combate, {}).get("xp_por_uso", 2)
+
+    turno      = 0
+    max_turnos = MAX_TURNOS_COMBATE
+
+    while salud_enemigo > 0 and personaje.esta_vivo() and turno < max_turnos:
+        turno += 1
+        resultado.turnos = turno
+
+        if iniciativa == "jugador" or turno > 1:
+            salud_enemigo = _turno_jugador(
+                resultado, personaje, enemigo, salud_enemigo,
+                skill_combate, daño_base, xp_por_golpe, bonus_ataque, turno
+            )
+
+        if salud_enemigo <= 0:
+            break
+
+        _turno_enemigo(resultado, personaje, enemigo, turno, iniciativa)
+
+        if _debe_huir(personaje, turno):
+            if personaje.check_stat("destreza", 4):
+                resultado.huida = True
+                resultado.añadir("  ¡Salud crítica! Huyes exitosamente.")
+                break
+            else:
+                resultado.añadir("  Intentas huir pero el enemigo te bloquea.")
+
+    return _cerrar_combate(resultado, personaje, enemigo, skill_combate,
+                           salud_enemigo, enemigo_key, turno)
+
+
+# ──────────────────────────────────────────────────────────────
+#  HELPERS INTERNOS
+# ──────────────────────────────────────────────────────────────
+
+def _resolver_horda(resultado: ResultadoCombate, personaje, enemigo: dict) -> ResultadoCombate:
+    """Hordas no combatibles: sólo se puede huir, con daño variable."""
+    resultado.añadir("  ¡Una HORDA! Imposible combatirla. Debes huir.")
+    if personaje.check_stat("destreza", 5):
+        daño = personaje.recibir_daño(random.randint(DAÑO_HORDA_HUIDA_MIN, DAÑO_HORDA_HUIDA_MAX))
+        resultado.daño_recibido = daño
+        resultado.huida = True
+        resultado.añadir(f"  Huiste con dificultad. -{daño} hp.")
+    else:
+        daño = personaje.recibir_daño(random.randint(DAÑO_HORDA_ATRAPADO_MIN, DAÑO_HORDA_ATRAPADO_MAX))
+        resultado.daño_recibido = daño
+        resultado.huida = True
+        resultado.añadir(f"  La horda te atrapó un momento. -{daño} hp.")
+    return resultado
+
+
+def _determinar_arma_jugador(resultado: ResultadoCombate, personaje) -> tuple[str, tuple]:
+    """Detecta el arma equipada y devuelve (skill_combate, rango_daño)."""
     arma = personaje.arma_equipada()
     if arma:
         daño_base     = arma.get("daño", (3, 7))
         skill_combate = ("combate_distancia" if arma.get("tipo") == "arma_fuego"
                           else "combate_cac")
+        resultado.añadir(
+            f"  (Arma activa: {arma.get('nombre', 'Arma')} "
+            f"{daño_base[0]}-{daño_base[1]})"
+        )
     else:
-        daño_base     = (2, 5)
+        daño_base     = (DAÑO_MANOS_MIN, DAÑO_MANOS_MAX)
         skill_combate = "combate_cac"
-        r.añadir("  (Sin arma equipada. Combate a manos limpias.)")
+        resultado.añadir("  (Sin arma equipada. Combate a manos limpias.)")
+        bloqueada = personaje.mejor_arma_bloqueada()
+        if bloqueada:
+            resultado.añadir(f"  ({personaje.motivo_bloqueo_arma(bloqueada)})")
+    return skill_combate, daño_base
 
-    # ── INICIATIVA ────────────────────────────────────────────
-    if iniciativa == "tirar":
-        vel_ene = ene.get("velocidad", 2)
-        iniciativa = ("jugador"
-                      if personaje.stats["destreza"] + random.randint(1, 6)
-                         > vel_ene + random.randint(1, 6)
-                      else "enemigo")
 
-    xp_por_golpe = SKILLS.get(skill_combate, {}).get("xp_por_uso", 2)
+def _resolver_iniciativa(iniciativa: str, personaje, enemigo: dict) -> str:
+    """Resuelve quién actúa primero si la iniciativa no está fijada."""
+    if iniciativa != "tirar":
+        return iniciativa
+    velocidad_enemigo = enemigo.get("velocidad", 2)
+    gana_jugador = (
+        personaje.stats["destreza"] + random.randint(1, 6)
+        > velocidad_enemigo + random.randint(1, 6)
+    )
+    return "jugador" if gana_jugador else "enemigo"
 
-    turno      = 0
-    max_turnos = 12
 
-    while salud_ene > 0 and personaje.esta_vivo() and turno < max_turnos:
-        turno += 1
-        r.turnos = turno
+def _turno_jugador(
+    resultado: ResultadoCombate,
+    personaje,
+    enemigo: dict,
+    salud_enemigo: int,
+    skill_combate: str,
+    daño_base: tuple,
+    xp_por_golpe: int,
+    bonus_ataque: int,
+    turno: int,
+) -> int:
+    """Ejecuta el ataque del jugador. Devuelve la salud restante del enemigo."""
+    dificultad = (
+        DIFICULTAD_GOLPE_BASE
+        + enemigo.get("velocidad", 2) * DIFICULTAD_GOLPE_POR_VELOCIDAD
+        - bonus_ataque
+    )
+    if not personaje.check_skill(skill_combate, dificultad):
+        resultado.añadir(f"  T{turno} Tu ataque falla.")
+        return salud_enemigo
 
-        # ── TURNO DEL JUGADOR ─────────────────────────────────
-        if iniciativa == "jugador" or turno > 1:
-            dif_golpe = 40 + ene.get("velocidad", 2) * 5
-            if personaje.check_skill(skill_combate, dif_golpe - bonus_ataque):
-                # XP por golpe exitoso — se acumula para mostrar al final
-                personaje.ganar_xp_skill(skill_combate, xp_por_golpe)
+    personaje.ganar_xp_skill(skill_combate, xp_por_golpe)
 
-                dmg  = random.randint(*daño_base)
-                # Rasgo golpe_brutal
-                mult = personaje.obtener_efecto_rasgo("daño_cac_mult", 1.0)
-                if skill_combate == "combate_cac":
-                    dmg = int(dmg * mult)
-                # Crítico
-                if personaje.stats["suerte"] >= 8 and random.random() < 0.15:
-                    dmg = int(dmg * 1.8)
-                    r.añadir(f"  T{turno} ★ CRÍTICO → {ene['nombre']}: -{dmg} hp")
-                else:
-                    r.añadir(f"  T{turno} Atacas al {ene['nombre']}: -{dmg} hp")
-                salud_ene -= dmg
-                r.daño_causado += dmg
-            else:
-                r.añadir(f"  T{turno} Tu ataque falla.")
+    daño  = random.randint(*daño_base)
+    daño += personaje.bonus_sinergia_arma(personaje.arma_equipada())
 
-            if salud_ene <= 0:
-                break
+    mult_rasgo = personaje.obtener_efecto_rasgo("daño_cac_mult", 1.0)
+    if skill_combate == "combate_cac":
+        daño = int(daño * mult_rasgo)
 
-        # ── TURNO DEL ENEMIGO ─────────────────────────────────
-        vel         = ene.get("velocidad", 2)
-        dif_esquive = 3 + vel
-        # Rasgo esquivador
-        dif_esquive += personaje.obtener_efecto_rasgo("dificultad_esquive", 0)
+    # Golpe crítico — sólo posible con suerte alta.
+    if personaje.stats["suerte"] >= SUERTE_MIN_CRITICO and random.random() < PROB_CRITICO:
+        daño = int(daño * MULT_DAÑO_CRITICO)
+        resultado.añadir(f"  T{turno} ★ CRÍTICO → {enemigo['nombre']}: -{daño} hp")
+    else:
+        resultado.añadir(f"  T{turno} Atacas al {enemigo['nombre']}: -{daño} hp")
 
-        if not personaje.check_stat("destreza", dif_esquive):
-            dmg_ene = random.randint(*ene["daño"])
+    resultado.daño_causado += daño
+    return salud_enemigo - daño
 
-            habs = ene.get("habilidades", [])
-            if "emboscada" in habs and turno == 1 and iniciativa == "enemigo":
-                dmg_ene = int(dmg_ene * 1.5)
-                r.añadir(f"  T{turno} ¡EMBOSCADA! {ene['nombre']}: -{dmg_ene} hp")
-            elif "salpicadura_acida" in habs and random.random() < 0.3:
-                dmg_ene += 8
-                r.añadir(f"  T{turno} {ene['nombre']} escupe ácido: -{dmg_ene} hp ⚗")
-            else:
-                r.añadir(f"  T{turno} {ene['nombre']} te golpea: -{dmg_ene} hp")
 
-            real = personaje.recibir_daño(dmg_ene)
-            r.daño_recibido += real
+def _turno_enemigo(
+    resultado: ResultadoCombate,
+    personaje,
+    enemigo: dict,
+    turno: int,
+    iniciativa: str,
+) -> None:
+    """Ejecuta el ataque del enemigo contra el jugador."""
+    velocidad   = enemigo.get("velocidad", 2)
+    dif_esquive = 3 + velocidad
+    dif_esquive += personaje.obtener_efecto_rasgo("dificultad_esquive", 0)
 
-            # Condición por mordida infectada
-            if "mordida_infectada" in habs and random.random() < 0.30:
-                c = Condicion("infeccion_leve", "Infección leve", 1, 5,
+    if personaje.check_stat("destreza", dif_esquive):
+        resultado.añadir(f"  T{turno} Esquivas el ataque del {enemigo['nombre']}.")
+        return
+
+    daño_enemigo = random.randint(*enemigo["daño"])
+    habilidades  = enemigo.get("habilidades", [])
+
+    if "emboscada" in habilidades and turno == 1 and iniciativa == "enemigo":
+        daño_enemigo = int(daño_enemigo * MULT_DAÑO_EMBOSCADA)
+        resultado.añadir(f"  T{turno} ¡EMBOSCADA! {enemigo['nombre']}: -{daño_enemigo} hp")
+    elif "salpicadura_acida" in habilidades and random.random() < PROB_ATAQUE_ACIDO:
+        daño_enemigo += DAÑO_EXTRA_ACIDO
+        resultado.añadir(f"  T{turno} {enemigo['nombre']} escupe ácido: -{daño_enemigo} hp ⚗")
+    else:
+        resultado.añadir(f"  T{turno} {enemigo['nombre']} te golpea: -{daño_enemigo} hp")
+
+    daño_real = personaje.recibir_daño(daño_enemigo)
+    resultado.daño_recibido += daño_real
+
+    if "mordida_infectada" in habilidades and random.random() < PROB_MORDIDA_INFECTADA:
+        condicion = Condicion("infeccion_leve", "Infección leve", 1, 5,
                               {"daño_por_turno": 2})
-                personaje.añadir_condicion(c)
-                r.añadir("  ¡La mordida parece infectada!")
-        else:
-            r.añadir(f"  T{turno} Esquivas el ataque del {ene['nombre']}.")
+        personaje.añadir_condicion(condicion)
+        resultado.añadir("  ¡La mordida parece infectada!")
 
-        # ── HUIDA AUTOMÁTICA si salud crítica ─────────────────
-        if personaje.salud < personaje.salud_max * 0.25 and turno >= 2:
-            if personaje.check_stat("destreza", 4):
-                r.huida = True
-                r.añadir("  ¡Salud crítica! Huyes exitosamente.")
-                break
-            else:
-                r.añadir("  Intentas huir pero el enemigo te bloquea.")
 
-    # ── RESULTADO FINAL ───────────────────────────────────────
-    if salud_ene <= 0:
-        r.victoria = True
-        r.añadir(f"  ✔ {ene['nombre']} neutralizado en {turno} turnos.")
-        # Loot del enemigo
-        for loot_key in ene.get("loot", []):
-            if loot_key and loot_key in ITEMS and random.random() < 0.60:
-                r.loot_enemigo.append(dict(ITEMS[loot_key]))
-        # XP de victoria — bonus por neutralizar al enemigo completo
-        personaje.ganar_xp_skill(skill_combate, ene.get("xp", 10))
-        # Contadores
+def _debe_huir(personaje, turno: int) -> bool:
+    """Devuelve True si el personaje está en estado crítico y puede intentar huir."""
+    return (
+        personaje.salud < personaje.salud_max * SALUD_PCT_HUIDA_CRITICA
+        and turno >= TURNO_MIN_HUIDA
+    )
+
+
+def _cerrar_combate(
+    resultado: ResultadoCombate,
+    personaje,
+    enemigo: dict,
+    skill_combate: str,
+    salud_enemigo: int,
+    enemigo_key: str,
+    turno: int,
+) -> ResultadoCombate:
+    """Determina el resultado final y registra contadores y loot."""
+    if salud_enemigo <= 0:
+        resultado.victoria = True
+        resultado.añadir(f"  ✔ {enemigo['nombre']} neutralizado en {turno} turnos.")
+        for loot_key in enemigo.get("loot", []):
+            if loot_key and loot_key in ITEMS and random.random() < PROB_LOOT_ENEMIGO:
+                resultado.loot_enemigo.append(dict(ITEMS[loot_key]))
+        personaje.ganar_xp_skill(skill_combate, enemigo.get("xp", 10))
         if "infectado" in enemigo_key:
             personaje.infectados_eliminados += 1
         elif "bandido" in enemigo_key:
             personaje.bandidos_eliminados += 1
-
-    elif not r.huida:
-        r.derrota = True
-        r.añadir("  ✖ Has sido derrotado/a.")
+    elif not resultado.huida:
+        resultado.derrota = True
+        resultado.añadir("  ✖ Has sido derrotado/a.")
 
     personaje.evaluar_rasgos_nuevos()
-    return r
+    return resultado

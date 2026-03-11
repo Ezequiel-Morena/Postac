@@ -18,6 +18,7 @@ LOOT_POOLS = {
         "venda", "venda", "venda",
         "antiseptico", "antiseptico",
         "trapos", "trapos",
+        "suero_rehidratacion",
         None,
     ],
     "medicina_media": [
@@ -26,6 +27,9 @@ LOOT_POOLS = {
         "antiseptico",
         "pastilla_purificadora",
         "yodo",
+        "pastillas_yodo",
+        "vitaminas_c",
+        "calmante_nervioso",
         None,
     ],
     "medicina_rara": [
@@ -33,6 +37,8 @@ LOOT_POOLS = {
         "sutura", "sutura",
         "antibiotico", "antibiotico", "antibiotico",
         "botiquin",
+        "antidoto_universal",
+        "purgante_medico",
         None,
     ],
 
@@ -48,7 +54,10 @@ LOOT_POOLS = {
         "lata_atun", "lata_atun",
         "lata_sopa",
         "barritas_energia", "barritas_energia",
+        "racion_deshidratada",
         "carne_ahumada",
+        "racion_militar",
+        "carne_cruda",
         None,
     ],
 
@@ -62,6 +71,7 @@ LOOT_POOLS = {
         "botella_agua", "botella_agua", "botella_agua",
         "garrafa_agua",
         "filtro_agua",
+        "suero_rehidratacion",
         None,
     ],
 
@@ -97,6 +107,7 @@ LOOT_POOLS = {
         "encendedor", "encendedor",
         "cuerda",
         "brujula",
+        "detector_radiacion",
         "ganzuas",
         None,
     ],
@@ -120,16 +131,19 @@ LOOT_POOLS = {
     "material_especial": [
         "alcohol_industrial", "alcohol_industrial",
         "gasolina",
+        "filtro_hepa",
         "cable_electrico",
     ],
 
     # ── EQUIPO ────────────────────────────────────────────────
     "equipo_especial": [
         "linterna", "linterna",
+        "manta_termica",
         "mascarilla", "mascarilla",
         "mochila_tactica",
         "radio_comunicacion",
         "brujula",
+        "mascara_gas",
         None,
     ],
 
@@ -167,6 +181,8 @@ LOOT_POOLS = {
         "cuchillo_tactico",
         "botella_agua",
         "antibiotico",
+        "racion_militar",
+        "pastillas_yodo",
     ],
 
     # ── EJEMPLO: cómo agregar una pool nueva ──────────────────
@@ -177,4 +193,50 @@ LOOT_POOLS = {
     #     "comida_militar",
     #     "chaleco_tactico",
     # ],
+
+    # ── VESTIMENTA ─────────────────────────────────────────────
+    "ropa_comun": [
+        "camiseta_algodon", "camiseta_algodon",
+        "pantalon_algodon", "pantalon_algodon",
+        "zapatillas", "zapatillas",
+        "gorro_lana",
+        "guantes_lana",
+        "sombrero_ala",
+        None, None,
+    ],
+    "ropa_abrigo": [
+        "abrigo_invierno", "abrigo_invierno",
+        "chaqueta_cuero",
+        "pantalon_cuero",
+        "botas_cuero", "botas_cuero",
+        "gorro_lana", "gorro_lana",
+        "guantes_cuero",
+        "pasamontanas",
+        None,
+    ],
+    "ropa_impermeable": [
+        "impermeable", "impermeable",
+        "capucha_sintetica",
+        "botas_invierno",
+        "pantalon_termico",
+        "guantes_trabajo",
+        None,
+    ],
+    "ropa_tactica": [
+        "camisa_militar",
+        "gabardina_militar",
+        "pantalon_cargo",
+        "botas_militares",
+        "casco_construccion",
+        "guantes_cuero",
+        None, None,
+    ],
+    "ropa_nbq": [
+        "traje_nbq",
+        "pantalon_termico",
+        "botas_invierno",
+        "guantes_trabajo",
+        "casco_construccion",
+        None, None, None,
+    ],
 }

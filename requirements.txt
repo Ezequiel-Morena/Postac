@@ -1,0 +1,11 @@
+# ============================================================
+# POSTAC — Dependencias
+# ============================================================
+
+# ── Activas ──────────────────────────────────────────────────
+Pillow>=10.0.0          # Exportación de bitácoras como imagen PNG
+rich>=14.0              # UI moderna en terminal: tablas, colores, progress bars
+
+# ── Testing ──────────────────────────────────────────────────
+pytest>=8.0.0           # Testing unitario e integración
+pytest-cov>=5.0.0       # Cobertura de tests

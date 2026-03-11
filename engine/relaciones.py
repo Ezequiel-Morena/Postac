@@ -58,10 +58,60 @@ _CAMPOS_NPC_BASE: dict = {
     "dias_expedicion": 0,
     "veces_peleado":  0,
     "quiere_irse":    False,
+    # Ejes emocionales: representan el vínculo afectivo real con el personaje.
+    "amor":           50,
+    "respeto":        50,
+    "resentimiento":  0,
 }
 
 
-# ── Inicialización ────────────────────────────────────────────────────────────
+# ── Helpers de ejes emocionales ───────────────────────────────────────────────
+
+def calidad_vinculo(estado: dict) -> int:
+    """
+    Calidad combinada del vínculo entre el jugador y un NPC (0-100).
+
+    Fórmula: (amor + respeto) / 2 - resentimiento / 2
+    Un vínculo perfecto (amor=100, respeto=100, resentimiento=0) devuelve 100.
+    Mucho resentimiento degrada la relación aunque haya amor y respeto.
+    """
+    amor          = int(estado.get("amor",          50))
+    respeto       = int(estado.get("respeto",       50))
+    resentimiento = int(estado.get("resentimiento",  0))
+    return max(0, min(100, (amor + respeto) // 2 - resentimiento // 2))
+
+
+def procesar_duelo_npc(
+    personaje: "Sobreviviente",
+    nombre: str,
+    era_pareja: bool = False,
+    calidad: int = 50,
+) -> list[str]:
+    """
+    Genera mensajes de duelo cuando un NPC muere o abandona el refugio.
+    El impacto narrativo varía según la calidad del vínculo.
+    No aplica penalizaciones adicionales de moral; las llamadas existentes
+    ya lo hacen. Solo enriquece la narrativa.
+    """
+    msgs: list[str] = []
+    if era_pareja:
+        msgs.append(
+            f"[Refugio] 💔 Perder a {nombre}, tu pareja, deja un vacío "
+            "que el refugio tardará mucho en llenar."
+        )
+    elif calidad >= 75:
+        msgs.append(
+            f"[Refugio] La pérdida de {nombre} pesa sobre ti. "
+            "Habían construido algo real."
+        )
+    elif calidad < 30:
+        msgs.append(
+            f"[Refugio] La relación con {nombre} era difícil, "
+            "pero su ausencia reordena el equilibrio del grupo."
+        )
+    return msgs
+
+
 
 def estado_relaciones_refugio_base() -> dict[str, dict]:
     """El refugio arranca vacío. Los NPCs se incorporan durante el juego."""
@@ -96,6 +146,9 @@ def _npc_estado_inicial(npc: dict) -> dict:
         "hijos":            list(npc.get("hijos", [])),
         "pareja_id":        npc.get("pareja_id"),
         "embarazo_ticks":   int(npc.get("embarazo_ticks", 0)),
+        "amor":             max(0, min(100, int(npc.get("amor",          50)))),
+        "respeto":          max(0, min(100, int(npc.get("respeto",       50)))),
+        "resentimiento":    max(0, min(100, int(npc.get("resentimiento",  0)))),
     }
 
 
@@ -330,13 +383,16 @@ def _resolver_retorno_npc(
     tirada = rng.random()
 
     if tirada < prob_muerte:
-        # NPC no regresó con vida.
+        # NPC no regresó con vida: calcular impacto emocional antes de borrar.
+        era_pareja = estado.get("estado_relacion") == "pareja"
+        calidad    = calidad_vinculo(estado)
         del personaje.relaciones_refugio[npc_id]
         personaje.moral = max(0, personaje.moral - 15)
         msgs.append(
             f"[Refugio] ✝ {nombre} ({rol}) no ha regresado. "
             "Quizás fue presa de algo en las ruinas. El grupo llora su ausencia."
         )
+        msgs.extend(procesar_duelo_npc(personaje, nombre, era_pareja, calidad))
         return msgs
 
     if tirada < prob_muerte + prob_lesion:
@@ -435,6 +491,9 @@ def _evaluar_tension_grupal(personaje: "Sobreviviente", rng: random.Random) -> l
         rol       = estado.get("rol", "")
 
         # Activar bandera "quiere_irse" si condiciones lo justifican.
+        # El resentimiento acumulado puede romper la relación aunque la confianza
+        # sea moderada (un NPC puede respetar al líder pero odiar vivir allí).
+        resentimiento = int(estado.get("resentimiento", 0))
         queria_irse = bool(estado.get("quiere_irse", False))
         quiere_irse_ahora = (
             confianza < _CONFIANZA_IRSE_MIN
@@ -442,6 +501,9 @@ def _evaluar_tension_grupal(personaje: "Sobreviviente", rng: random.Random) -> l
         ) or (
             int(estado.get("veces_peleado", 0)) >= 3
             and confianza < 35
+        ) or (
+            resentimiento > 75
+            and confianza < 50
         )
 
         if quiere_irse_ahora and not queria_irse:
@@ -463,15 +525,18 @@ def _evaluar_tension_grupal(personaje: "Sobreviviente", rng: random.Random) -> l
             )
 
     for npc_id in a_irse:
-        estado = relaciones[npc_id]
-        nombre = estado.get("nombre", npc_id)
-        rol    = estado.get("rol", "")
+        estado  = relaciones[npc_id]
+        nombre  = estado.get("nombre", npc_id)
+        rol     = estado.get("rol", "")
+        era_pareja = estado.get("estado_relacion") == "pareja"
+        calidad    = calidad_vinculo(estado)
         del relaciones[npc_id]
         personaje.moral = max(0, personaje.moral - 10)
         msgs.append(
             f"[Refugio] {nombre} ({rol}) ha abandonado el grupo. "
             "Empacó en silencio y se fue al amanecer."
         )
+        msgs.extend(procesar_duelo_npc(personaje, nombre, era_pareja, calidad))
 
     return msgs
 
@@ -558,6 +623,14 @@ def _aplicar_efectos(personaje: "Sobreviviente", estado: dict, evento: dict) -> 
     if "hambre_npc" in efectos:
         estado["hambre"] = clamp(int(estado.get("hambre", 35)) + int(efectos["hambre_npc"]))
 
+    # Ejes emocionales.
+    if "amor" in efectos:
+        estado["amor"]          = clamp(int(estado.get("amor",          50)) + int(efectos["amor"]))
+    if "respeto" in efectos:
+        estado["respeto"]       = clamp(int(estado.get("respeto",       50)) + int(efectos["respeto"]))
+    if "resentimiento" in efectos:
+        estado["resentimiento"] = clamp(int(estado.get("resentimiento",  0)) + int(efectos["resentimiento"]))
+
     # Registro de conflictos violentos.
     if evento.get("id") == "conflicto_violento":
         estado["veces_peleado"] = int(estado.get("veces_peleado", 0)) + 1
@@ -603,8 +676,9 @@ def _generar_alertas(personaje: "Sobreviviente") -> list[str]:
     for npc_id, estado in personaje.relaciones_refugio.items():
         if bool(estado.get("en_expedicion", False)):
             continue
-        salud  = int(estado.get("salud",  100))
-        hambre = int(estado.get("hambre",   0))
+        salud         = int(estado.get("salud",          100))
+        hambre        = int(estado.get("hambre",           0))
+        resentimiento = int(estado.get("resentimiento",    0))
         nombre = estado.get("nombre", npc_id)
         if salud <= 30:
             msgs.append(
@@ -617,6 +691,12 @@ def _generar_alertas(personaje: "Sobreviviente") -> list[str]:
                 "La moral del grupo sufre."
             )
             personaje.moral = max(0, personaje.moral - 2)
+        if resentimiento >= 70:
+            msgs.append(
+                f"[Refugio] ⚠ {nombre} acumula un resentimiento preocupante. "
+                "La convivencia podría volverse insostenible."
+            )
+            personaje.moral = max(0, personaje.moral - 1)
     return msgs
 
 
@@ -625,6 +705,7 @@ def evaluar_reacciones_emocionales(personaje: "Sobreviviente", rng: random.Rando
     Evalúa si los NPCs reaccionan emocionalmente al estado del personaje.
     Los NPCs con alta confianza/pareja se preocupan cuando el personaje está mal.
     El miedo aumenta ante situaciones críticas del grupo.
+    El resentimiento alto genera frialdad y tensión en el refugio.
     """
     msgs: list[str] = []
     salud_pct = personaje.salud / max(1, personaje.salud_max)
@@ -632,7 +713,8 @@ def evaluar_reacciones_emocionales(personaje: "Sobreviviente", rng: random.Rando
     for npc_id, estado in personaje.relaciones_refugio.items():
         if estado.get("en_expedicion"):
             continue
-        confianza = int(estado.get("confianza", 0))
+        confianza     = int(estado.get("confianza",     0))
+        resentimiento = int(estado.get("resentimiento", 0))
         nombre = estado.get("nombre", npc_id)
         er = estado.get("estado_relacion", "desconocido")
 
@@ -658,6 +740,14 @@ def evaluar_reacciones_emocionales(personaje: "Sobreviviente", rng: random.Rando
         # El miedo se reduce si el personaje está bien y hay confianza
         if salud_pct > SALUD_PCT_REDUCE_MIEDO and personaje.moral > MORAL_MINIMA_REDUCE_MIEDO and estado.get("miedo", 0) > 0:
             estado["miedo"] = max(0, estado["miedo"] - 5)
+
+        # Resentimiento alto genera frialdad: sube tensión pasivamente
+        if resentimiento > 60 and rng.random() < 0.30:
+            estado["tension"] = min(100, int(estado.get("tension", 25)) + 8)
+            msgs.append(
+                f"[Refugio] {nombre} muestra una actitud fría y distante. "
+                "El resentimiento acumulado contamina el ambiente."
+            )
 
     return msgs
 

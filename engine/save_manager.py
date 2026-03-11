@@ -19,7 +19,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-SAVE_VERSION = 16
+SAVE_VERSION = 17
 
 DIR_SAVES        = Path("saves")
 DIR_BACKUPS      = DIR_SAVES / "backups"
@@ -389,6 +389,20 @@ def _migrar(data: dict, version_actual: int) -> dict:
         p.setdefault("humedad_ropa", 0.0)
         p.setdefault("horas_exposicion_frio", 0.0)
         cambios.append("temperatura_vestimenta_v16")
+
+    if version_actual < 17:
+        # v16 → v17: ejes emocionales (amor/respeto/resentimiento) por NPC.
+        # Los valores se inicializan desde confianza/tensión existentes para
+        # que los NPCs ya conocidos tengan valores coherentes con la historia.
+        for npc_estado in p.get("relaciones_refugio", {}).values():
+            if not isinstance(npc_estado, dict):
+                continue
+            confianza = int(npc_estado.get("confianza", 40))
+            tension   = int(npc_estado.get("tension",   30))
+            npc_estado.setdefault("amor",         min(100, int(confianza * 0.8)))
+            npc_estado.setdefault("respeto",      min(100, int(confianza * 0.7)))
+            npc_estado.setdefault("resentimiento", max(0, int(tension * 0.3 - confianza * 0.1)))
+        cambios.append("ejes_emocionales_v17")
 
     if cambios:
         logger.info("Migración v%d→%d: %s", version_actual, SAVE_VERSION, ", ".join(cambios))

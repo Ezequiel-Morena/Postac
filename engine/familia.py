@@ -106,6 +106,10 @@ def generar_npc(
         "hijos":            [],
         "pareja_id":        None,
         "embarazo_ticks":   0,
+        # Ejes emocionales: todo NPC empieza desde una base neutra.
+        "amor":             50,
+        "respeto":          50,
+        "resentimiento":    0,
     }
     return npc
 

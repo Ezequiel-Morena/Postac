@@ -46,7 +46,7 @@ _ICONOS_TIPO: dict[str, str] = {
 }
 
 TIPOS_CONSUMIBLES: frozenset[str] = frozenset({
-    "comida", "agua", "medicina", "medicina_fuerte", "purificacion",
+    "comida", "agua", "medicina", "medicina_fuerte", "purificacion", "libro",
 })
 
 _ORDEN_TIPOS: list[str] = [

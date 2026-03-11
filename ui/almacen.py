@@ -43,13 +43,26 @@ def pantalla_almacen(personaje: "Sobreviviente") -> None:
             console.print(f"  [{COLOR_DANGER}]No se pudo sacar del almacén.[/{COLOR_DANGER}]")
             return
         if not ctx.añadir_item(extraido):
-            # No cabe en la mochila — devolver al almacén sin pérdida
             agregar_item(ctx.almacen, extraido)
             console.print(f"  [{COLOR_DANGER}]No cabe en la mochila para usarlo.[/{COLOR_DANGER}]")
             return
         ok, msg = ctx.usar_item(nombre)
         col = COLOR_OK if ok else COLOR_DANGER
         console.print(f"\n  [{col}]{msg}[/{col}]")
+
+    def _equipar_desde_almacen(ctx, item):
+        """Intenta llevar un arma al inventario para equiparla en combate."""
+        nombre = item["nombre"]
+        ok, msg = transferir_al_inventario(ctx.almacen, ctx, nombre, 1)
+        if ok:
+            console.print(
+                f"\n  [{COLOR_OK}]✔ {nombre} guardada en tu mochila. "
+                f"Se equipará automáticamente en combate.[/{COLOR_OK}]"
+            )
+        else:
+            console.print(
+                f"\n  [{COLOR_WARN}]No cabe en la mochila: {msg}[/{COLOR_WARN}]"
+            )
 
     def _tomar_inventario(ctx, item):
         ok, msg = transferir_al_inventario(ctx.almacen, ctx, item["nombre"], 1)
@@ -64,6 +77,11 @@ def pantalla_almacen(personaje: "Sobreviviente") -> None:
             "u", "Usar directamente",
             _usar_desde_almacen,
             condicion=lambda it: it.get("tipo") in _TIPOS_CONSUMIBLES,
+        ),
+        AccionItem(
+            "e", "Equipar (llevar a mochila)",
+            _equipar_desde_almacen,
+            condicion=lambda it: it.get("tipo", "").startswith("arma"),
         ),
         AccionItem("t", "Tomar al inventario", _tomar_inventario),
         AccionItem("i", "Inspeccionar",         _inspeccionar),

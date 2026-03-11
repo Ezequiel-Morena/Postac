@@ -164,58 +164,209 @@ def _imprimir_tabla_animales(animales: list) -> None:
     console.print(t)
 
 
+def _ajustar_ejes(estado: dict, **deltas) -> None:
+    """Aplica deltas con clamp 0-100 a campos del NPC. Solo campos numéricos conocidos."""
+    _defaults = {
+        "confianza": 50, "lealtad": 50, "tension": 25, "miedo": 0,
+        "amor": 50, "respeto": 50, "resentimiento": 0,
+    }
+    for campo, delta in deltas.items():
+        actual = int(estado.get(campo, _defaults.get(campo, 0)))
+        estado[campo] = max(0, min(100, actual + delta))
+
+
 def _interactuar_con_npc(personaje, npc_id: str, est: dict):
-    """Submenú de interacción con un NPC específico."""
+    """Submenú de interacción social y relaciones con un NPC específico."""
     from engine.familia import (
         proponer_relacion, terminar_relacion, puede_tener_hijo,
         iniciar_embarazo, estado_relacion_actual,
     )
+    from engine.relaciones import calidad_vinculo
+    from engine.input_handler import menu_navegable
+    from engine.almacen import agregar_item, quitar_item
+    import copy as _copy
 
     nombre = est.get("nombre", "?")
-    er     = estado_relacion_actual(est)
 
-    opciones: list[tuple[str, str]] = []
+    while True:
+        er      = estado_relacion_actual(est)
+        amor    = int(est.get("amor",          50))
+        respeto = int(est.get("respeto",       50))
+        resen   = int(est.get("resentimiento",  0))
+        calidad = calidad_vinculo(est)
 
-    if er not in ("pareja",) and not est.get("es_menor", False):
-        if er in ("cercano", "interes"):
-            opciones.append(("r", "Proponer relación"))
-        elif er == "ex_pareja":
-            opciones.append(("r", "Intentar retomar la relación"))
-        elif er in ("amigo", "conocido"):
-            opciones.append(("r", "Declarar interés"))
+        limpiar()
+        console.print(
+            f"\n[bold {COLOR_ACCENT}]  {nombre}[/bold {COLOR_ACCENT}]"
+            f"  [{COLOR_DIM}]{est.get('rol','?')}, {est.get('edad','?')}a[/{COLOR_DIM}]"
+        )
+        console.print(f"  [{COLOR_DIM}]{est.get('desc','')}[/{COLOR_DIM}]")
+        console.print(
+            f"\n  [{COLOR_INFO}]Confianza: {est.get('confianza',0)}"
+            f"  Tensión: {est.get('tension',0)}"
+            f"  Relación: {er}"
+            f"  Vínculo: {calidad}/100[/{COLOR_INFO}]"
+        )
+        console.print(
+            f"  [{COLOR_DIM}]Amor: {amor}  Respeto: {respeto}  Resentimiento: {resen}[/{COLOR_DIM}]\n"
+        )
 
-    if er == "pareja":
-        opciones.append(("x", "Terminar la relación"))
-        if puede_tener_hijo(personaje, npc_id):
-            opciones.append(("h", "Hablar de tener un hijo"))
+        # ── Opciones disponibles ─────────────────────────────────────────────
+        opciones: list[tuple[str, str]] = [
+            ("h", "Hablar"),
+            ("b", "Bromear"),
+            ("e", "Elogiar"),
+            ("g", "Regalar algo del inventario"),
+        ]
 
-    opciones.append(("q", "Volver"))
+        if est.get("miedo", 0) > 40:
+            opciones.append(("c", "Consolar"))
 
-    limpiar()
-    console.print(f"\n[bold {COLOR_ACCENT}]  {nombre}[/bold {COLOR_ACCENT}]"
-                  f"  [{COLOR_DIM}]{est.get('rol','?')}, {est.get('edad','?')}a[/{COLOR_DIM}]")
-    console.print(f"  [{COLOR_DIM}]{est.get('desc','')}[/{COLOR_DIM}]")
-    console.print(
-        f"\n  [{COLOR_INFO}]Confianza: {est.get('confianza',0)}  "
-        f"Relación: {er}  Tensión: {est.get('tension',0)}[/{COLOR_INFO}]\n"
-    )
+        opciones.append(("p", "Pelear / discutir"))
 
-    for key, texto in opciones:
-        console.print(f"  [{COLOR_ACCENT}][{key}][/{COLOR_ACCENT}] {texto}")
+        # ── Opciones de relación ─────────────────────────────────────────────
+        if not est.get("es_menor", False):
+            if er == "pareja":
+                opciones.append(("x", "Terminar la relación"))
+                if puede_tener_hijo(personaje, npc_id):
+                    opciones.append(("j", "Hablar de tener un hijo"))
+            elif er in ("cercano", "interes"):
+                opciones.append(("r", "Proponer relación"))
+            elif er == "ex_pareja":
+                opciones.append(("r", "Intentar retomar la relación"))
+            elif er in ("amigo", "conocido"):
+                opciones.append(("r", "Declarar interés"))
 
-    cmd = leer_cmd()
+        opciones.append(("q", "Volver"))
 
-    if cmd == "r" and not est.get("es_menor", False):
-        msg = proponer_relacion(personaje, npc_id)
-        console.print(f"\n  [{COLOR_INFO}]{msg}[/{COLOR_INFO}]")
-        pausa()
+        for key, texto in opciones:
+            console.print(f"  [{COLOR_ACCENT}][{key}][/{COLOR_ACCENT}] {texto}")
 
-    elif cmd == "x" and er == "pareja":
-        msg = terminar_relacion(personaje, npc_id)
-        console.print(f"\n  [{COLOR_DANGER}]{msg}[/{COLOR_DANGER}]")
-        pausa()
+        cmd = leer_cmd()
 
-    elif cmd == "h" and er == "pareja" and puede_tener_hijo(personaje, npc_id):
-        msg = iniciar_embarazo(personaje, npc_id)
-        console.print(f"\n  [{COLOR_INFO}]{msg}[/{COLOR_INFO}]")
-        pausa()
+        if cmd == "q" or es_salida(cmd):
+            return
+
+        # ── Hablar ───────────────────────────────────────────────────────────
+        elif cmd == "h":
+            _ajustar_ejes(est, confianza=3, amor=2, tension=-2)
+            console.print(
+                f"\n  [{COLOR_OK}]Pasaste un rato hablando con {nombre}. "
+                f"La distancia entre vosotros se redujo un poco.[/{COLOR_OK}]"
+            )
+            pausa()
+
+        # ── Bromear ──────────────────────────────────────────────────────────
+        elif cmd == "b":
+            if int(est.get("confianza", 0)) < 30:
+                console.print(
+                    f"\n  [{COLOR_WARN}]{nombre} no te conoce lo suficiente "
+                    f"para ese tipo de humor.[/{COLOR_WARN}]"
+                )
+            elif resen > 50:
+                # El resentimiento hace que la broma salga mal
+                _ajustar_ejes(est, resentimiento=5, tension=5, amor=-3)
+                console.print(
+                    f"\n  [{COLOR_WARN}]El intento de humor salió mal. "
+                    f"{nombre} lo tomó como una burla.[/{COLOR_WARN}]"
+                )
+            else:
+                _ajustar_ejes(est, amor=5, tension=-5, resentimiento=-3)
+                personaje.moral = min(100, personaje.moral + 1)
+                console.print(
+                    f"\n  [{COLOR_OK}]Le hiciste reír. "
+                    f"El ambiente del refugio se alivió un poco.[/{COLOR_OK}]"
+                )
+            pausa()
+
+        # ── Elogiar ──────────────────────────────────────────────────────────
+        elif cmd == "e":
+            if int(est.get("confianza", 0)) < 25:
+                console.print(
+                    f"\n  [{COLOR_WARN}]Necesitas conocer mejor a {nombre} "
+                    f"para que un elogio tenga peso real.[/{COLOR_WARN}]"
+                )
+            else:
+                _ajustar_ejes(est, respeto=8, amor=4, resentimiento=-5)
+                console.print(
+                    f"\n  [{COLOR_OK}]Reconociste el esfuerzo de {nombre}. "
+                    f"Lo notó.[/{COLOR_OK}]"
+                )
+            pausa()
+
+        # ── Regalar ──────────────────────────────────────────────────────────
+        elif cmd == "g":
+            if not personaje.inventario:
+                console.print(
+                    f"\n  [{COLOR_WARN}]No tienes nada en el inventario "
+                    f"para regalar.[/{COLOR_WARN}]"
+                )
+                pausa()
+            else:
+                nombres_inv = [
+                    f"{it['nombre']}"
+                    + (f" (x{it['cantidad']})" if it.get("cantidad", 1) > 1 else "")
+                    for it in personaje.inventario
+                ] + ["↩ Cancelar"]
+                idx = menu_navegable(f"¿Qué regalarle a {nombre}?", nombres_inv, limpiar=True)
+                if 0 <= idx < len(personaje.inventario):
+                    item_regalo  = personaje.inventario[idx]
+                    nombre_item  = item_regalo.get("nombre", "?")
+                    # Quitar 1 unidad del inventario
+                    extraido = quitar_item(personaje.inventario, nombre_item, 1)
+                    if extraido:
+                        agregar_item(personaje.almacen, extraido)
+                        personalidad = est.get("personalidad", "")
+                        if personalidad in ("generoso", "empatico", "leal", "protector"):
+                            _ajustar_ejes(est, amor=15, confianza=10, respeto=6)
+                            reaccion = "Lo recibió con gratitud genuina."
+                        elif personalidad in ("oportunista", "hosco", "desconfiado"):
+                            _ajustar_ejes(est, amor=6, confianza=5, respeto=3)
+                            reaccion = "Lo aceptó sin decir mucho, pero lo recordará."
+                        else:
+                            _ajustar_ejes(est, amor=10, confianza=8, respeto=5)
+                            reaccion = "Agradeció el gesto."
+                        console.print(
+                            f"\n  [{COLOR_OK}]Le regalaste {nombre_item}. "
+                            f"{nombre}: {reaccion}[/{COLOR_OK}]"
+                        )
+                        pausa()
+
+        # ── Consolar ─────────────────────────────────────────────────────────
+        elif cmd == "c" and est.get("miedo", 0) > 40:
+            _ajustar_ejes(est, amor=8, tension=-5)
+            est["miedo"] = max(0, int(est.get("miedo", 0)) - 15)
+            console.print(
+                f"\n  [{COLOR_OK}]Intentaste calmar a {nombre}. "
+                f"Tus palabras llegaron.[/{COLOR_OK}]"
+            )
+            pausa()
+
+        # ── Pelear / discutir ─────────────────────────────────────────────────
+        elif cmd == "p":
+            _ajustar_ejes(est, tension=15, amor=-8, respeto=-6, resentimiento=12)
+            est["veces_peleado"] = int(est.get("veces_peleado", 0)) + 1
+            console.print(
+                f"\n  [{COLOR_DANGER}]La discusión con {nombre} escaló rápidamente. "
+                f"Nadie salió bien parado.[/{COLOR_DANGER}]"
+            )
+            pausa()
+
+        # ── Proponer / retomar relación ───────────────────────────────────────
+        elif cmd == "r" and not est.get("es_menor", False):
+            msg = proponer_relacion(personaje, npc_id)
+            console.print(f"\n  [{COLOR_INFO}]{msg}[/{COLOR_INFO}]")
+            pausa()
+
+        # ── Terminar relación ─────────────────────────────────────────────────
+        elif cmd == "x" and er == "pareja":
+            msg = terminar_relacion(personaje, npc_id)
+            console.print(f"\n  [{COLOR_DANGER}]{msg}[/{COLOR_DANGER}]")
+            pausa()
+            return  # Volver a la lista tras romper la relación
+
+        # ── Tener un hijo ─────────────────────────────────────────────────────
+        elif cmd == "j" and er == "pareja" and puede_tener_hijo(personaje, npc_id):
+            msg = iniciar_embarazo(personaje, npc_id)
+            console.print(f"\n  [{COLOR_INFO}]{msg}[/{COLOR_INFO}]")
+            pausa()

@@ -10,17 +10,22 @@ __pycache__/
 *.pyd
 .Python
 
+# Testing / cobertura
+.pytest_cache/
+.coverage
+htmlcov/
+
 # Saves (datos de partida — no subir, son locales)
 saves/
 
-# Agente
+# Backups generados
+*.bak
 
 # Imágenes generadas
 *.png
 
 # Logs
 *.log
-bot.log
 
 # Editores
 .vscode/

@@ -13,6 +13,7 @@ from engine.recoleccion import recolectar, puede_recolectar
 from engine.cocina import cocinar_item, listar_items_cocinables, puede_cocinar
 
 _ACCIONES_MENU = [
+    "🍽️  Cubrir necesidades (autoconsumo)",
     "🎣 Pescar        (cerca del agua)",
     "🏹 Cazar          (zona exterior/forestal)",
     "🌿 Recolectar     (plantas y leña)",
@@ -36,24 +37,26 @@ def pantalla_acciones_refugio(personaje, opciones_zona: list):
 
         # Actualizar la opción de cocinar con el estado del fuego
         acciones = list(_ACCIONES_MENU)
-        acciones[3] = f"🍳 Cocinar       {fuego_str}"
+        acciones[4] = f"🍳 Cocinar       {fuego_str}"
 
         idx = menu_rich("ACCIONES DEL REFUGIO", acciones, subtitulo="Esc/0 para volver")
         if idx in (-1, len(acciones) - 1):
             return
         elif idx == 0:
-            _accion_pescar(personaje, opciones_zona)
+            _accion_autoconsumo(personaje)
         elif idx == 1:
-            _accion_cazar(personaje, opciones_zona)
+            _accion_pescar(personaje, opciones_zona)
         elif idx == 2:
-            _accion_recolectar(personaje, opciones_zona)
+            _accion_cazar(personaje, opciones_zona)
         elif idx == 3:
-            _accion_cocinar(personaje)
+            _accion_recolectar(personaje, opciones_zona)
         elif idx == 4:
-            _accion_encender_fuego(personaje)
+            _accion_cocinar(personaje)
         elif idx == 5:
-            _accion_poner_trampa(personaje, opciones_zona)
+            _accion_encender_fuego(personaje)
         elif idx == 6:
+            _accion_poner_trampa(personaje, opciones_zona)
+        elif idx == 7:
             _accion_revisar_trampas(personaje, opciones_zona)
 
 
@@ -68,6 +71,42 @@ def _elegir_zona_accion(opciones_zona: list, tipo_accion: str) -> dict | None:
     if idx < 0 or idx == len(opciones_zona):
         return None
     return opciones_zona[idx]
+
+
+def _accion_autoconsumo(personaje) -> None:
+    """Satisface automáticamente las necesidades del personaje (hambre, sed, salud)."""
+    limpiar()
+    console.print(f"\n  [{COLOR_INFO}]═══ CUBRIR NECESIDADES ═══[/{COLOR_INFO}]\n")
+
+    hambre_antes = personaje.hambre
+    sed_antes = personaje.sed
+    salud_antes = personaje.salud
+
+    resultados = personaje.autoconsumo()
+
+    if resultados:
+        for r in resultados:
+            console.print(f"  [{COLOR_OK}]✓[/{COLOR_OK}] {r}")
+        console.print()
+        if personaje.hambre != hambre_antes:
+            console.print(f"  Hambre: {hambre_antes} → [{COLOR_OK}]{personaje.hambre}[/{COLOR_OK}]")
+        if personaje.sed != sed_antes:
+            console.print(f"  Sed:    {sed_antes} → [{COLOR_OK}]{personaje.sed}[/{COLOR_OK}]")
+        if personaje.salud != salud_antes:
+            console.print(f"  Salud:  {salud_antes} → [{COLOR_OK}]{personaje.salud}[/{COLOR_OK}]")
+    else:
+        necesidades_ok = (
+            personaje.hambre <= 65
+            and personaje.sed <= 65
+            and personaje.salud >= 40
+        )
+        if necesidades_ok:
+            console.print(f"  [{COLOR_DIM}]Tus necesidades están cubiertas. No se consumió nada.[/{COLOR_DIM}]")
+        else:
+            console.print(f"  [{COLOR_WARN}]No hay recursos en el inventario ni en el almacén para cubrir tus necesidades.[/{COLOR_WARN}]")
+
+    pausa()
+
 
 
 def _accion_pescar(personaje, opciones_zona):

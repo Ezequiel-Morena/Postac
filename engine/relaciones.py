@@ -163,6 +163,11 @@ def tick_refugio(personaje: "Sobreviviente", horas: float, contexto: str = "") -
         estado = personaje.relaciones_refugio[npc_id]
         _tick_necesidades_npc(estado, horas, rng, personaje)
 
+    # ── 2.5 Autoconsumo con prioridad familiar y de personalidad ──────────────
+    # Menores primero → adultos protectores → adultos egoístas.
+    from engine.autoconsumo import resolver_autoconsumo_refugio
+    mensajes.extend(resolver_autoconsumo_refugio(personaje, rng))
+
     # ── 3. Decidir nuevas expediciones de NPCs ────────────────────────────────
     for npc_id in npcs_presentes:
         estado = personaje.relaciones_refugio[npc_id]
@@ -561,23 +566,24 @@ def _aplicar_efectos(personaje: "Sobreviviente", estado: dict, evento: dict) -> 
 # ── Necesidades autónomas ─────────────────────────────────────────────────────
 
 def _tick_necesidades_npc(estado: dict, horas: float, rng: random.Random, personaje: "Sobreviviente | None" = None) -> None:
-    """Avanza hambre y salud del NPC de forma autónoma. Consume del almacén si está disponible."""
+    """
+    Avanza el hambre del NPC y aplica consecuencias fisiológicas.
+    El consumo de recursos (autoconsumo) se gestiona en resolver_autoconsumo_refugio(),
+    que respeta el orden de prioridad familiar y de personalidad.
+    """
     subida_hambre = int(round(rng.uniform(3, 8) * (horas / 6.0)))
     estado["hambre"] = clamp(int(estado.get("hambre", 35)) + subida_hambre)
 
-    # Si hay almacén disponible, el NPC intenta comer y curarse.
-    if personaje is not None and not estado.get("en_expedicion"):
-        almacen = getattr(personaje, "almacen", [])
-        if int(estado.get("hambre", 0)) > 65:
-            from engine.almacen import consumir_tipo
-            comida = consumir_tipo(almacen, "comida", 1)
-            if comida:
-                estado["hambre"] = max(0, int(estado.get("hambre", 100)) - 30)
-        if int(estado.get("salud", 100)) < 50:
-            from engine.almacen import consumir_tipo
-            medicina = consumir_tipo(almacen, "medicina", 1)
-            if medicina:
-                estado["salud"] = clamp(int(estado.get("salud", 50)) + 25)
+    # Consecuencias de inanición y recuperación (el consumo se hace en resolver_autoconsumo_refugio)
+    if int(estado.get("hambre", 0)) >= 85:
+        estado["salud"] = clamp(int(estado.get("salud", 90)) - max(1, int(horas)))
+    elif int(estado.get("tension", 0)) >= 70:
+        if rng.random() < 0.20:
+            estado["salud"] = clamp(int(estado.get("salud", 90)) - 1)
+
+    if int(estado.get("hambre", 0)) < 50 and int(estado.get("tension", 0)) < 35:
+        recuperacion = max(1, int(horas * 0.5))
+        estado["salud"] = clamp(int(estado.get("salud", 90)) + recuperacion)
 
     if int(estado.get("hambre", 0)) >= 85:
         estado["salud"] = clamp(int(estado.get("salud", 90)) - max(1, int(horas)))

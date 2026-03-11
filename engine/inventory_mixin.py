@@ -179,6 +179,141 @@ class InventoryMixin:
             return False, "ID inválido"
         return self._aplicar_efectos_item(item, forzar_supervivencia=forzar_supervivencia)
 
+    # ─────────────────────────────────────────────────────────
+    #  AUTOCONSUMO
+    # ─────────────────────────────────────────────────────────
+
+    def autoconsumo(
+        self,
+        umbral_hambre: int = 65,
+        umbral_sed: int = 65,
+        umbral_salud: int = 40,
+    ) -> list[str]:
+        """
+        Acción rápida: satisface automáticamente las necesidades del personaje.
+
+        Prioridad: inventario personal → almacén compartido del refugio.
+        Los umbrales por defecto son los del perfil 'pragmatico'. Se pueden
+        ajustar para simular distintos niveles de urgencia.
+
+        Returns:
+            Lista de mensajes sobre lo que se consumió.
+        """
+        resultados: list[str] = []
+
+        if self.hambre > umbral_hambre:
+            msg = self._autoconsumo_necesidad(
+                necesidad="hambre",
+                tipos_inventario=("comida",),
+                tipos_almacen=("comida",),
+            )
+            if msg:
+                resultados.append(msg)
+
+        if self.sed > umbral_sed:
+            msg = self._autoconsumo_necesidad(
+                necesidad="sed",
+                tipos_inventario=("agua",),
+                tipos_almacen=("agua",),
+            )
+            if msg:
+                resultados.append(msg)
+
+        if self.salud < umbral_salud:
+            msg = self._autoconsumo_necesidad(
+                necesidad="salud",
+                tipos_inventario=("medicina", "medicina_fuerte"),
+                tipos_almacen=("medicina",),
+            )
+            if msg:
+                resultados.append(msg)
+
+        return resultados
+
+    def _autoconsumo_necesidad(
+        self,
+        necesidad: str,
+        tipos_inventario: tuple[str, ...],
+        tipos_almacen: tuple[str, ...],
+    ) -> str:
+        """
+        Intenta satisfacer una necesidad específica.
+        Primero busca en el inventario personal (con todos sus efectos y
+        multiplicadores de rasgos). Si no hay, consume del almacén
+        compartido aplicando los efectos del ítem directamente.
+
+        Returns:
+            Mensaje descriptivo, o cadena vacía si no hubo consumo.
+        """
+        # Paso 1: inventario personal (usa la ruta completa con rasgo/farmacología)
+        item = self._mejor_item_inventario_para(necesidad, tipos_inventario)
+        if item:
+            ok, msg = self._aplicar_efectos_item(item, forzar_supervivencia=True)
+            if ok:
+                return msg or f"Usaste {item.get('nombre', 'ítem')}"
+
+        # Paso 2: almacén compartido
+        almacen = getattr(self, "almacen", [])
+        from engine.almacen import consumir_tipo
+        for tipo in tipos_almacen:
+            consumido = consumir_tipo(almacen, tipo, 1)
+            if consumido:
+                return self._aplicar_consumo_desde_almacen(consumido[0], necesidad)
+
+        return ""
+
+    def _mejor_item_inventario_para(
+        self,
+        necesidad: str,
+        tipos: tuple[str, ...],
+    ) -> dict | None:
+        """
+        Encuentra el ítem del inventario personal más efectivo para una
+        necesidad dada ('hambre', 'sed' o 'salud').
+
+        Para hambre/sed busca el efecto más negativo (mayor reducción).
+        Para salud busca el efecto más positivo (mayor curación).
+        """
+        candidatos = [
+            item for item in self.inventario
+            if item.get("tipo") in tipos
+            and necesidad in item.get("efectos", {})
+        ]
+        if not candidatos:
+            return None
+
+        if necesidad in ("hambre", "sed"):
+            return min(candidatos, key=lambda i: i["efectos"][necesidad])
+        return max(candidatos, key=lambda i: i["efectos"][necesidad])
+
+    def _aplicar_consumo_desde_almacen(self, item: dict, necesidad: str) -> str:
+        """
+        Aplica los efectos de un ítem tomado del almacén directamente sobre
+        el personaje, sin pasar por la lógica de farmacología ni de peso.
+        Usado únicamente en el fallback de autoconsumo desde el almacén.
+        """
+        efectos = item.get("efectos", {})
+        nombre = item.get("nombre", "ítem")
+        partes: list[str] = []
+
+        if "hambre" in efectos:
+            reduccion = abs(int(efectos["hambre"]))
+            self.hambre = max(0, self.hambre - reduccion)
+            partes.append(f"-{reduccion} hambre")
+
+        if "sed" in efectos:
+            reduccion = abs(int(efectos["sed"]))
+            self.sed = max(0, self.sed - reduccion)
+            partes.append(f"-{reduccion} sed")
+
+        if "salud" in efectos:
+            ganancia = int(efectos["salud"])
+            self.salud = min(self.salud_max, self.salud + ganancia)
+            partes.append(f"+{ganancia} salud")
+
+        detalle = f" ({', '.join(partes)})" if partes else ""
+        return f"{nombre} del almacén{detalle}"
+
     def _aplicar_efectos_item(self, item: dict, forzar_supervivencia: bool = False) -> tuple[bool, str]:
         efectos  = item.get("efectos", {})
         msgs: list[str] = []
